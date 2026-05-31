@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
@@ -42,9 +43,12 @@ function notFound(res, entity = "resource") { return res.status(404).json({ erro
 function optionalText(value) { if (value === undefined || value === null) return null; const text = String(value).trim(); return text.length ? text : null; }
 function requiredText(value, name) { const text = optionalText(value); if (!text) throw new Error(`${name} is required`); return text; }
 function toBoolInt(value, fallback = 1) { if (value === undefined || value === null || value === "") return fallback; return value === true || value === 1 || value === "1" || value === "true" ? 1 : 0; }
-function asMoney(value, name = "price") { const n = Number(value); if (!Number.isInteger(n) || n < 0) throw new Error(`${name} must be a non-negative integer`); return n; }
-function asQuantity(value, name = "quantity") { const n = Number(value); if (!Number.isInteger(n) || n < 0) throw new Error(`${name} must be a non-negative integer`); return n; }
-function asPositiveQuantity(value, name = "conversion_qty") { const n = Number(value); if (!Number.isInteger(n) || n <= 0) throw new Error(`${name} must be a positive integer`); return n; }
+function asMoney(value, name = "price") { const n = Number(value); if (!Number.isSafeInteger(n) || n < 0) throw new Error(`${name} must be a non-negative safe integer`); return n; }
+function asQuantity(value, name = "quantity") { const n = Number(value); if (!Number.isSafeInteger(n) || n < 0) throw new Error(`${name} must be a non-negative safe integer`); return n; }
+function asPositiveQuantity(value, name = "conversion_qty") { const n = Number(value); if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`${name} must be a positive safe integer`); return n; }
+function asPositiveId(value, name = "id") { const n = Number(value); if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`${name} must be a positive safe integer`); return n; }
+function asIdempotencyKey(value) { const key = optionalText(value); if (!key) return null; if (!/^[A-Za-z0-9._:-]{8,128}$/.test(key)) throw new Error("idempotency_key is invalid"); return key; }
+function assertSafeMoney(value, name = "amount") { if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${name} is outside safe integer range`); return value; }
 function asCategoryId(value) { if (value === undefined || value === null || value === "") return null; const n = Number(value); if (!Number.isInteger(n) || n <= 0) throw new Error("category_id must be a positive integer or null"); return n; }
 function asUnit(value, name) { const unit = requiredText(value, name); if (!VALID_UNITS.has(unit)) throw new Error(`${name} is invalid`); return unit; }
 function currentUser(req) { return req.session?.user ?? null; }
@@ -304,6 +308,43 @@ function mapSellableSkuWithCategory(row) {
     categoryName: row.category_name ?? null
   };
 }
+
+function checkoutRequestHash({ paymentMethod, lines }) {
+  const normalizedLines = lines.map((line) => ({
+    skuId: asPositiveId(line.sku_id ?? line.skuId, "sku_id"),
+    quantity: asPositiveQuantity(line.quantity ?? line.quantitySold, "quantity")
+  }));
+  return crypto.createHash("sha256").update(JSON.stringify({ paymentMethod, items: normalizedLines })).digest("hex");
+}
+
+function getTransactionReceipt(transactionId) {
+  const tx = db.prepare(`SELECT id, total, payment_method, created_at FROM transactions WHERE id = ?`).get(transactionId);
+  if (!tx) return null;
+  const items = db.prepare(`
+    SELECT ti.product_id, ti.sku_id, ti.sku_name_snapshot, ti.sell_unit_snapshot, ti.conversion_qty_snapshot,
+           COALESCE(ti.quantity_sold, ti.quantity) AS quantity_sold, ti.unit_price, ti.subtotal,
+           pm.name AS product_name
+    FROM transaction_items ti
+    JOIN product_masters pm ON pm.id = ti.product_id
+    WHERE ti.transaction_id = ?
+    ORDER BY ti.id ASC
+  `).all(transactionId).map((item) => ({
+    productId: item.product_id,
+    skuId: item.sku_id,
+    productName: item.product_name,
+    skuName: item.sku_name_snapshot,
+    displayName: item.sku_name_snapshot === "Default" ? item.product_name : `${item.product_name} - ${item.sku_name_snapshot}`,
+    quantitySold: item.quantity_sold,
+    sellUnit: item.sell_unit_snapshot,
+    conversionQty: item.conversion_qty_snapshot,
+    baseUnitsConsumed: item.conversion_qty_snapshot * item.quantity_sold,
+    unitPrice: item.unit_price,
+    unitPriceLabel: rupiah(item.unit_price),
+    subtotal: item.subtotal,
+    subtotalLabel: rupiah(item.subtotal)
+  }));
+  return { id: tx.id, createdAt: tx.created_at, total: tx.total, totalLabel: rupiah(tx.total), paymentMethod: tx.payment_method, items };
+}
 app.get("/api/cashier/products/search", requireCashierOrOwner, (req, res) => {
   const barcode = optionalText(req.query.barcode); const q = optionalText(req.query.q);
   if (!barcode && !q) return badRequest(res, "barcode or q is required");
@@ -341,34 +382,59 @@ app.get("/api/cashier/catalog", requireCashierOrOwner, (_req, res) => {
 });
 
 app.post("/api/cashier/checkout", requireCashierOrOwner, (req, res) => {
-  const user = currentUser(req); const paymentMethod = optionalText(req.body.payment_method ?? req.body.paymentMethod) || "cash"; const lines = Array.isArray(req.body.items) ? req.body.items : [];
+  const user = currentUser(req);
+  const paymentMethod = optionalText(req.body.payment_method ?? req.body.paymentMethod) || "cash";
+  const lines = Array.isArray(req.body.items) ? req.body.items : [];
   if (!["cash", "qris", "other"].includes(paymentMethod)) return badRequest(res, "payment_method is invalid");
   if (!lines.length) return badRequest(res, "items are required");
+  if (lines.length > 100) return badRequest(res, "too many checkout items");
+
   try {
+    const idempotencyKey = asIdempotencyKey(req.get("Idempotency-Key") ?? req.body.idempotencyKey ?? req.body.idempotency_key ?? req.body.clientRequestId ?? req.body.client_request_id);
+    const requestHash = idempotencyKey ? checkoutRequestHash({ paymentMethod, lines }) : null;
     let response;
+    let replayed = false;
+
     db.exec("BEGIN IMMEDIATE");
     try {
+      if (idempotencyKey) {
+        const existing = db.prepare(`SELECT id, request_hash FROM transactions WHERE cashier_id = ? AND idempotency_key = ?`).get(user.id, idempotencyKey);
+        if (existing) {
+          if (existing.request_hash !== requestHash) throw new Error("idempotency_key was already used for a different checkout");
+          response = getTransactionReceipt(existing.id);
+          if (!response) throw new Error("idempotent transaction receipt could not be loaded");
+          replayed = true;
+          db.exec("COMMIT");
+          return res.status(200).json({ transaction: response, idempotent: true });
+        }
+      }
+
       const snapshots = [];
       const consumptionByProduct = new Map();
       const stockByProduct = new Map();
       for (const line of lines) {
-        const skuId = Number(line.sku_id ?? line.skuId); const quantitySold = asPositiveQuantity(line.quantity ?? line.quantitySold, "quantity");
+        if (!line || typeof line !== "object") throw new Error("checkout item is invalid");
+        const skuId = asPositiveId(line.sku_id ?? line.skuId, "sku_id");
+        const quantitySold = asPositiveQuantity(line.quantity ?? line.quantitySold, "quantity");
         const sku = db.prepare(`SELECT ps.*, pm.name AS product_name, pm.active AS product_active, COALESCE(s.quantity, 0) AS stock_qty FROM product_skus ps JOIN product_masters pm ON pm.id = ps.product_id LEFT JOIN stocks s ON s.product_id = pm.id WHERE ps.id = ?`).get(skuId);
         if (!sku || !sku.active || !sku.product_active) throw new Error(`sku ${skuId} is not sellable`);
-        const consume = sku.conversion_qty * quantitySold;
+        const consume = assertSafeMoney(sku.conversion_qty * quantitySold, "base units consumed");
+        const subtotal = assertSafeMoney(sku.price * quantitySold, "line subtotal");
         consumptionByProduct.set(sku.product_id, (consumptionByProduct.get(sku.product_id) || 0) + consume);
         stockByProduct.set(sku.product_id, sku.stock_qty);
-        snapshots.push({ sku, quantitySold, consume, subtotal: sku.price * quantitySold });
+        snapshots.push({ sku, quantitySold, consume, subtotal });
       }
       for (const [productId, consume] of consumptionByProduct.entries()) {
+        assertSafeMoney(consume, "product stock consumption");
         if ((stockByProduct.get(productId) || 0) < consume) throw new Error(`insufficient stock for product ${productId}`);
       }
-      const total = snapshots.reduce((sum, item) => sum + item.subtotal, 0);
-      const tx = db.prepare(`INSERT INTO transactions (cashier_id, total, payment_method) VALUES (?, ?, ?)`).run(user.id, total, paymentMethod);
+      const total = assertSafeMoney(snapshots.reduce((sum, item) => sum + item.subtotal, 0), "checkout total");
+      const tx = db.prepare(`INSERT INTO transactions (cashier_id, total, payment_method, idempotency_key, request_hash) VALUES (?, ?, ?, ?, ?)`).run(user.id, total, paymentMethod, idempotencyKey, requestHash);
       const transactionId = Number(tx.lastInsertRowid);
       const receiptItems = [];
       for (const item of snapshots) {
-        db.prepare(`UPDATE stocks SET quantity = quantity - ?, last_updated_by = ?, last_updated_at = datetime('now') WHERE product_id = ?`).run(item.consume, user.id, item.sku.product_id);
+        const stockUpdate = db.prepare(`UPDATE stocks SET quantity = quantity - ?, last_updated_by = ?, last_updated_at = datetime('now') WHERE product_id = ? AND quantity >= ?`).run(item.consume, user.id, item.sku.product_id, item.consume);
+        if (stockUpdate.changes !== 1) throw new Error(`insufficient stock for product ${item.sku.product_id}`);
         db.prepare(`INSERT INTO transaction_items (transaction_id, product_id, sku_id, sku_name_snapshot, sell_unit_snapshot, conversion_qty_snapshot, quantity, quantity_sold, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(transactionId, item.sku.product_id, item.sku.id, item.sku.name, item.sku.sell_unit, item.sku.conversion_qty, item.quantitySold, item.quantitySold, item.sku.price, item.subtotal);
         receiptItems.push({
           productId: item.sku.product_id,
@@ -388,17 +454,14 @@ app.post("/api/cashier/checkout", requireCashierOrOwner, (req, res) => {
       }
       db.exec("COMMIT");
       const txRow = db.prepare(`SELECT id, created_at FROM transactions WHERE id = ?`).get(transactionId);
-      response = {
-        id: transactionId,
-        createdAt: txRow?.created_at ?? null,
-        total,
-        totalLabel: rupiah(total),
-        paymentMethod,
-        items: receiptItems
-      };
+      response = { id: transactionId, createdAt: txRow?.created_at ?? null, total, totalLabel: rupiah(total), paymentMethod, items: receiptItems };
     } catch (err) { db.exec("ROLLBACK"); throw err; }
-    res.status(201).json({ transaction: response });
-  } catch (err) { if (err.message?.includes("sku") || err.message?.includes("stock") || err.message?.includes("quantity")) return badRequest(res, err.message); return handleSqlError(res, err); }
+    if (!replayed) res.status(201).json({ transaction: response });
+  } catch (err) {
+    if (err.message?.includes("idempotency_key was already used")) return res.status(409).json({ error: err.message });
+    if (err.message?.includes("sku") || err.message?.includes("stock") || err.message?.includes("quantity") || err.message?.includes("checkout item") || err.message?.includes("safe integer") || err.message?.includes("idempotency_key")) return badRequest(res, err.message);
+    return handleSqlError(res, err);
+  }
 });
 
 app.use(express.static(siteDir, { extensions: ["html"] }));

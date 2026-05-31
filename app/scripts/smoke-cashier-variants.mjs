@@ -86,6 +86,7 @@ async function main() {
   let ecerSkuId;
   let packSkuId;
   let checkoutTransactionId;
+  let checkoutIdempotencyKey;
 
   await runTest("owner/admin and cashier can log in", async () => {
     adminCookie = await login("admin");
@@ -150,9 +151,10 @@ async function main() {
   });
 
   await runTest("checkout decrements base-unit stock and returns receipt summary", async () => {
+    checkoutIdempotencyKey = `${prefix}-CHECKOUT-1`;
     const checkout = await request("POST", "/api/cashier/checkout", {
       cookie: cashierCookie,
-      body: { paymentMethod: "qris", items: [{ skuId: packSkuId, quantity: 1 }, { skuId: ecerSkuId, quantity: 1 }] }
+      body: { paymentMethod: "qris", idempotencyKey: checkoutIdempotencyKey, items: [{ skuId: packSkuId, quantity: 1 }, { skuId: ecerSkuId, quantity: 1 }] }
     });
     assert([200, 201].includes(checkout.status), `checkout expected 200/201, got ${checkout.status}: ${checkout.text}`);
     const tx = checkout.json?.transaction;
@@ -166,6 +168,32 @@ async function main() {
     assert(tx.items.some((item) => item.skuId === ecerSkuId && item.displayName === "Smoke Baterai AAA - Ecer" && item.quantitySold === 1 && item.baseUnitsConsumed === 1 && compactCurrencyLabel(item.unitPriceLabel) === "Rp3.000"), "ecer receipt did not snapshot display/conversion/price data");
     const qty = await productQuantity(adminCookie, productId);
     assert(qty === 1, `expected base stock 1 after consuming 5, got ${qty}`);
+  });
+
+  await runTest("replayed checkout idempotency key returns same receipt without decrementing stock", async () => {
+    assert(checkoutTransactionId && checkoutIdempotencyKey, "missing checkout idempotency setup");
+    const before = await productQuantity(adminCookie, productId);
+    const replay = await request("POST", "/api/cashier/checkout", {
+      cookie: cashierCookie,
+      body: { paymentMethod: "qris", idempotencyKey: checkoutIdempotencyKey, items: [{ skuId: packSkuId, quantity: 1 }, { skuId: ecerSkuId, quantity: 1 }] }
+    });
+    assert(replay.status === 200, `idempotent replay expected 200, got ${replay.status}: ${replay.text}`);
+    assert(replay.json?.idempotent === true, "idempotent replay did not declare idempotent=true");
+    assert(replay.json?.transaction?.id === checkoutTransactionId, "idempotent replay returned a different transaction id");
+    const after = await productQuantity(adminCookie, productId);
+    assert(after === before, `stock changed after idempotent replay: before ${before}, after ${after}`);
+  });
+
+  await runTest("reusing checkout idempotency key for different body is rejected without stock change", async () => {
+    assert(checkoutIdempotencyKey, "missing checkout idempotency key");
+    const before = await productQuantity(adminCookie, productId);
+    const conflict = await request("POST", "/api/cashier/checkout", {
+      cookie: cashierCookie,
+      body: { paymentMethod: "qris", idempotencyKey: checkoutIdempotencyKey, items: [{ skuId: ecerSkuId, quantity: 1 }] }
+    });
+    assert(conflict.status === 409, `idempotency conflict expected 409, got ${conflict.status}: ${conflict.text}`);
+    const after = await productQuantity(adminCookie, productId);
+    assert(after === before, `stock changed after idempotency conflict: before ${before}, after ${after}`);
   });
 
   await runTest("transaction items store price and conversion snapshots", async () => {

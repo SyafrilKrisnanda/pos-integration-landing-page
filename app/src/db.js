@@ -113,6 +113,8 @@ export function initSchema(db) {
       cashier_id INTEGER NOT NULL,
       total INTEGER NOT NULL CHECK(total >= 0),
       payment_method TEXT NOT NULL CHECK(payment_method IN ('cash','qris','other')),
+      idempotency_key TEXT,
+      request_hash TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY(cashier_id) REFERENCES users(id)
     );
@@ -128,6 +130,8 @@ export function initSchema(db) {
     );
   `);
 
+  addColumnIfMissing(db, "transactions", "idempotency_key", "TEXT");
+  addColumnIfMissing(db, "transactions", "request_hash", "TEXT");
   addColumnIfMissing(db, "transaction_items", "sku_id", "INTEGER");
   addColumnIfMissing(db, "transaction_items", "sku_name_snapshot", "TEXT");
   addColumnIfMissing(db, "transaction_items", "sell_unit_snapshot", "TEXT");
@@ -143,6 +147,7 @@ export function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_product_skus_barcode ON product_skus(barcode);
     CREATE INDEX IF NOT EXISTS idx_product_skus_active ON product_skus(active);
     CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_cashier_idempotency ON transactions(cashier_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_transaction_items_tx ON transaction_items(transaction_id);
     CREATE INDEX IF NOT EXISTS idx_transaction_items_sku ON transaction_items(sku_id);
     CREATE INDEX IF NOT EXISTS idx_stock_audits_product_created ON stock_audits(product_id, created_at);
