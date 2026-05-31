@@ -4,6 +4,8 @@ const loginForm = document.getElementById("loginForm");
 const logoutBtn = document.getElementById("logoutBtn");
 const searchForm = document.getElementById("searchForm");
 const searchResults = document.getElementById("searchResults");
+const categoryChips = document.getElementById("categoryChips");
+const catalogList = document.getElementById("catalogList");
 const cartList = document.getElementById("cartList");
 const checkoutForm = document.getElementById("checkoutForm");
 const clearCart = document.getElementById("clearCart");
@@ -12,6 +14,9 @@ const receiptBox = document.getElementById("receiptBox");
 const receipt = document.getElementById("receipt");
 
 let cart = [];
+let cashierCatalog = [];
+let categories = [];
+let activeCategory = "all";
 
 function escapeHtml(str) {
   return String(str ?? "")
@@ -65,7 +70,7 @@ function renderSearchResults(items = []) {
     <article class="admin-row">
       <div>
         <strong>${escapeHtml(item.displayName)}</strong><br>
-        <small>${escapeHtml(item.priceLabel)} / ${escapeHtml(item.sellUnit)} • konversi ${item.conversionQty} base unit • barcode ${escapeHtml(item.barcode || "-")}</small>
+        <small>${escapeHtml(item.categoryName || "Tanpa kategori")} • ${escapeHtml(item.priceLabel)} / ${escapeHtml(item.sellUnit)} • konversi ${item.conversionQty} base unit • barcode ${escapeHtml(item.barcode || "-")}</small>
       </div>
       <div class="admin-actions">
         <button type="button" class="button small primary" data-add-sku="${item.skuId}">Tambah</button>
@@ -78,9 +83,49 @@ function renderSearchResults(items = []) {
   }
 }
 
+function renderCategoryChips() {
+  const all = [{ id: "all", name: "Semua" }, ...categories];
+  categoryChips.innerHTML = all.map((category) => `
+    <button type="button" class="chip ${String(activeCategory) === String(category.id) ? "active" : ""}" data-category="${escapeHtml(category.id)}">
+      ${escapeHtml(category.name)}
+    </button>
+  `).join("");
+}
+
+function filteredCatalog() {
+  return cashierCatalog.filter((item) => {
+    if (activeCategory === "all") return true;
+    if (activeCategory === "none") return item.categoryId == null;
+    return String(item.categoryId) === String(activeCategory);
+  });
+}
+
+function renderCatalog() {
+  const items = filteredCatalog();
+  if (!items.length) {
+    catalogList.innerHTML = `<article class="admin-row"><div><strong>Belum ada SKU di kategori ini.</strong></div></article>`;
+    return;
+  }
+  catalogList.innerHTML = items.map((item) => `
+    <article class="admin-row">
+      <div>
+        <strong>${escapeHtml(item.displayName)}</strong><br>
+        <small>${escapeHtml(item.categoryName || "Tanpa kategori")} • ${escapeHtml(item.priceLabel)} / ${escapeHtml(item.sellUnit)} • konversi ${item.conversionQty} base unit</small>
+      </div>
+      <div class="admin-actions">
+        <button type="button" class="button small primary" data-catalog-add="${item.skuId}">Tambah</button>
+      </div>
+    </article>
+  `).join("");
+  for (const item of items) {
+    const button = catalogList.querySelector(`[data-catalog-add="${item.skuId}"]`);
+    if (button) button._sku = item;
+  }
+}
+
 function renderCart() {
   if (!cart.length) {
-    cartList.innerHTML = `<article class="admin-row"><div><strong>Cart kosong.</strong><br><small>Tambahkan SKU dari hasil pencarian.</small></div></article>`;
+    cartList.innerHTML = `<article class="admin-row"><div><strong>Cart kosong.</strong><br><small>Tambahkan SKU dari katalog atau hasil pencarian.</small></div></article>`;
     return;
   }
   const total = cart.reduce((sum, line) => sum + lineSubtotal(line), 0);
@@ -107,11 +152,23 @@ function addToCart(sku) {
   showMessage(`${sku.displayName} ditambahkan ke cart.`);
 }
 
+async function loadCatalog() {
+  const data = await api("/api/cashier/catalog");
+  categories = (data.categories || []).map((item) => ({
+    id: item.id ?? "none",
+    name: item.name
+  }));
+  cashierCatalog = data.items || [];
+  renderCategoryChips();
+  renderCatalog();
+}
+
 loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
     await api("/api/auth/login", { method: "POST", body: JSON.stringify(formJson(loginForm)) });
     setLoggedIn(true);
+    await loadCatalog();
     renderCart();
   } catch (err) {
     showMessage(err.message, true);
@@ -121,6 +178,7 @@ loginForm.addEventListener("submit", async (e) => {
 logoutBtn.addEventListener("click", async () => {
   await api("/api/auth/logout", { method: "POST" });
   cart = [];
+  cashierCatalog = [];
   setLoggedIn(false);
 });
 
@@ -141,6 +199,19 @@ searchForm.addEventListener("submit", async (e) => {
 searchResults.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-add-sku]");
   if (btn?._sku) addToCart(btn._sku);
+});
+
+catalogList.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-catalog-add]");
+  if (btn?._sku) addToCart(btn._sku);
+});
+
+categoryChips.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-category]");
+  if (!btn) return;
+  activeCategory = btn.dataset.category;
+  renderCategoryChips();
+  renderCatalog();
 });
 
 cartList.addEventListener("click", (e) => {
@@ -175,11 +246,12 @@ checkoutForm.addEventListener("submit", async (e) => {
     const tx = data.transaction;
     receipt.innerHTML = `
       <article class="admin-row"><div><strong>Transaksi #${tx.id}</strong><br><small>${escapeHtml(tx.paymentMethod)} • total ${escapeHtml(tx.totalLabel)}</small></div></article>
-      ${(tx.items || []).map((item) => `<article class="admin-row"><div><strong>${escapeHtml(item.displayName)}</strong><br><small>qty ${item.quantitySold} ${escapeHtml(item.sellUnit)} • konversi ${item.conversionQty} • ${escapeHtml(item.unitPriceLabel)} • subtotal ${escapeHtml(item.subtotalLabel)}</small></div></article>`).join("")}
+      ${(tx.items || []).map((item) => `<article class="admin-row"><div><strong>${escapeHtml(item.displayName)}</strong><br><small>qty ${item.quantitySold} ${escapeHtml(item.sellUnit)} • konversi ${item.conversionQty} • konsumsi ${item.baseUnitsConsumed} base unit • ${escapeHtml(item.unitPriceLabel)} • subtotal ${escapeHtml(item.subtotalLabel)}</small></div></article>`).join("")}
     `;
     receiptBox.hidden = false;
     cart = [];
     renderCart();
+    await loadCatalog();
     showMessage("Checkout berhasil.");
   } catch (err) {
     showMessage(err.message, true);
@@ -190,5 +262,6 @@ checkoutForm.addEventListener("submit", async (e) => {
   const me = await api("/api/auth/me");
   const isCashier = ["cashier", "owner_admin"].includes(me.user?.role);
   setLoggedIn(isCashier);
+  if (isCashier) await loadCatalog();
   renderCart();
 })().catch(() => setLoggedIn(false));

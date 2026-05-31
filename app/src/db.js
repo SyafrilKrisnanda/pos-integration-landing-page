@@ -234,6 +234,37 @@ export function seedDevData(db) {
       stock.run(productId, quantity);
     }
   }
+
+  // Retail mixed-unit example: Baterai AAA (ecer vs pack 4).
+  // Insert only if not present.
+  const batteryExists = db.prepare("SELECT COUNT(*) AS count FROM product_masters WHERE name = ?").get("Baterai AAA").count;
+  if (batteryExists === 0) {
+    const sembako = db.prepare("SELECT id FROM categories WHERE name = ?").get("Sembako");
+    const sembakoId = sembako?.id ?? null;
+
+    const result = db.prepare(
+      "INSERT INTO product_masters (name, category_id, description, base_unit, active) VALUES (?, ?, ?, ?, 1)"
+    ).run("Baterai AAA", sembakoId, "Contoh produk retail: bisa dijual ecer atau per pack.", "pcs");
+    const productId = Number(result.lastInsertRowid);
+
+    // Legacy sync for older DBs that still enforce FK from stocks.product_id -> products.id.
+    // Insert legacy product row first, then stocks.
+    db.prepare(
+      "INSERT OR IGNORE INTO products (id, name, category_id, price, unit, barcode, description, active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)"
+    ).run(productId, "Baterai AAA", sembakoId, 3000, "pcs", "899009990001", "Contoh produk retail: ecer/pack.");
+
+    db.prepare("INSERT OR IGNORE INTO stocks (product_id, quantity) VALUES (?, ?)").run(productId, 24);
+
+    // SKU: Ecer (1 pcs)
+    db.prepare(
+      "INSERT INTO product_skus (product_id, name, barcode, sell_unit, conversion_qty, price, active) VALUES (?, ?, ?, ?, ?, ?, 1)"
+    ).run(productId, "Ecer", "899009990001", "pcs", 1, 3000);
+
+    // SKU: Pack 4 (4 pcs)
+    db.prepare(
+      "INSERT INTO product_skus (product_id, name, barcode, sell_unit, conversion_qty, price, active) VALUES (?, ?, ?, ?, ?, ?, 1)"
+    ).run(productId, "Pack 4", "899009990002", "pack", 4, 10000);
+  }
 }
 
 export function initDb() {

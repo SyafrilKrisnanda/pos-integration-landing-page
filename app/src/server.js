@@ -296,6 +296,14 @@ app.get("/api/admin/stock-audits", requireOwnerAdmin, (_req, res) => { const ite
 function mapSellableSku(row) {
   return { skuId: row.sku_id, productId: row.product_id, productName: row.product_name, skuName: row.sku_name, displayName: row.sku_name === "Default" ? row.product_name : `${row.product_name} - ${row.sku_name}`, barcode: row.barcode, sellUnit: row.sell_unit, conversionQty: row.conversion_qty, price: row.price, priceLabel: rupiah(row.price), stockStatus: row.quantity >= row.conversion_qty ? "available" : "out_of_stock" };
 }
+
+function mapSellableSkuWithCategory(row) {
+  return {
+    ...mapSellableSku(row),
+    categoryId: row.category_id ?? null,
+    categoryName: row.category_name ?? null
+  };
+}
 app.get("/api/cashier/products/search", requireCashierOrOwner, (req, res) => {
   const barcode = optionalText(req.query.barcode); const q = optionalText(req.query.q);
   if (!barcode && !q) return badRequest(res, "barcode or q is required");
@@ -309,6 +317,27 @@ app.get("/api/cashier/products/search", requireCashierOrOwner, (req, res) => {
     ORDER BY pm.name ASC, ps.id ASC LIMIT 25
   `).all(barcode, barcode, q, q ? `%${q}%` : null, q ? `%${q}%` : null).filter((row) => row.quantity >= row.conversion_qty).map(mapSellableSku);
   res.json({ items: rows });
+});
+
+app.get("/api/cashier/catalog", requireCashierOrOwner, (_req, res) => {
+  const rows = db.prepare(`
+    SELECT ps.id AS sku_id, ps.product_id, ps.name AS sku_name, ps.barcode, ps.sell_unit, ps.conversion_qty, ps.price,
+           pm.name AS product_name, pm.category_id, c.name AS category_name,
+           COALESCE(s.quantity, 0) AS quantity
+    FROM product_skus ps
+    JOIN product_masters pm ON pm.id = ps.product_id
+    LEFT JOIN categories c ON c.id = pm.category_id
+    LEFT JOIN stocks s ON s.product_id = pm.id
+    WHERE pm.active = 1 AND ps.active = 1
+    ORDER BY COALESCE(c.name, 'ZZZ') ASC, pm.name ASC, ps.id ASC
+  `)
+    .all()
+    .filter((row) => row.quantity >= row.conversion_qty)
+    .map(mapSellableSkuWithCategory);
+
+  // categories list is used for the cashier side panel; include "Tanpa kategori" as null.
+  const categories = [{ id: null, name: "Tanpa kategori" }, ...getCategories().filter((c) => c.active).map((c) => ({ id: c.id, name: c.name }))];
+  res.json({ categories, items: rows });
 });
 
 app.post("/api/cashier/checkout", requireCashierOrOwner, (req, res) => {

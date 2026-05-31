@@ -44,35 +44,47 @@
 
         <div class="admin-message" id="message" role="status" hidden></div>
 
-        <section class="admin-box">
-          <h2>Cari SKU</h2>
-          <form class="admin-form inline" id="searchForm">
-            <label>Barcode / nama SKU <input name="term" placeholder="Scan barcode atau ketik nama produk…" autofocus required /></label>
-            <button class="button primary" type="submit">Cari</button>
-          </form>
-          <div class="admin-list" id="searchResults"></div>
+        <section class="cashier-layout admin-box">
+          <aside class="cashier-sidebar">
+            <h2>Kategori</h2>
+            <div class="chips" id="categoryChips" aria-label="Kategori"></div>
+
+            <h2 style="margin-top:1.1rem;">Cari SKU</h2>
+            <form class="admin-form inline" id="searchForm">
+              <label>Barcode / nama SKU <input name="term" placeholder="Scan barcode atau ketik nama produk…" autofocus required /></label>
+              <button class="button primary" type="submit">Cari</button>
+            </form>
+            <div class="admin-list" id="searchResults"></div>
+          </aside>
+
+          <section class="cashier-main">
+            <h2>Katalog</h2>
+            <div class="admin-list" id="catalogList"></div>
+          </section>
+
+          <section class="cashier-cart">
+            <h2>Cart</h2>
+            <div class="admin-list" id="cartList"></div>
+            <form class="admin-form inline" id="checkoutForm">
+              <label>Metode bayar
+                <select name="paymentMethod">
+                  <option value="cash">Cash</option>
+                  <option value="qris">QRIS</option>
+                  <option value="other">Lainnya</option>
+                </select>
+              </label>
+              <button class="button primary" type="submit">Checkout</button>
+              <button class="button secondary" id="clearCart" type="button">Kosongkan cart</button>
+            </form>
+
+            <section class="admin-box" id="receiptBox" hidden>
+              <h2>Receipt</h2>
+              <div id="receipt"></div>
+            </section>
+          </section>
         </section>
 
-        <section class="admin-box">
-          <h2>Cart</h2>
-          <div class="admin-list" id="cartList"></div>
-          <form class="admin-form inline" id="checkoutForm">
-            <label>Metode bayar
-              <select name="paymentMethod">
-                <option value="cash">Cash</option>
-                <option value="qris">QRIS</option>
-                <option value="other">Lainnya</option>
-              </select>
-            </label>
-            <button class="button primary" type="submit">Checkout</button>
-            <button class="button secondary" id="clearCart" type="button">Kosongkan cart</button>
-          </form>
-        </section>
-
-        <section class="admin-box" id="receiptBox" hidden>
-          <h2>Receipt</h2>
-          <div id="receipt"></div>
-        </section>
+        
       </section>
     </main>
 

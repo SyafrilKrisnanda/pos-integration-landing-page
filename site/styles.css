@@ -661,3 +661,34 @@ textarea {
     flex-direction: column;
   }
 }
+
+/* Cashier layout */
+.cashier-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.25fr) minmax(320px, 1fr);
+  gap: 1.25rem;
+}
+
+.cashier-sidebar,
+.cashier-main,
+.cashier-cart {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.cashier-sidebar h2,
+.cashier-main h2,
+.cashier-cart h2 {
+  margin-top: 0;
+}
+
+.cashier-main .admin-list,
+.cashier-cart .admin-list {
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 1100px) {
+  .cashier-layout {
+    grid-template-columns: 1fr;
+  }
+}
