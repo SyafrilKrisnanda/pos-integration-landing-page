@@ -24,10 +24,10 @@ function toWaLink(message) {
 function productImageSeed(name) {
   const key = String(name || "").toLowerCase();
 
-  if (key.includes("beras")) return "./assets/products/rice-premium-5kg.png";
-  if (key.includes("minyak")) return "./assets/products/minyak-goreng-1l.png";
-  if (key.includes("gula")) return "./assets/products/gula-pasir-1kg.png";
-  if (key.includes("air mineral") || key.includes("mineral")) return "./assets/products/air-mineral-600ml.png";
+  if (key.includes("beras")) return "./assets/products/rice-premium-5kg.webp";
+  if (key.includes("minyak")) return "./assets/products/minyak-goreng-1l.webp";
+  if (key.includes("gula")) return "./assets/products/gula-pasir-1kg.webp";
+  if (key.includes("air mineral") || key.includes("mineral")) return "./assets/products/air-mineral-600ml.webp";
 
   // fallback dummy
   const assets = ["bakso-hero.png", "bakso-urat.png", "mie-ayam.png"];
