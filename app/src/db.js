@@ -42,7 +42,7 @@ export function initSchema(db) {
       name TEXT NOT NULL,
       category_id INTEGER,
       price INTEGER NOT NULL CHECK(price >= 0),
-      unit TEXT NOT NULL CHECK(unit IN ('pcs','pack')),
+      unit TEXT NOT NULL CHECK(unit IN ('pcs','pack','kg','g','liter','ml','btl','box')),
       barcode TEXT UNIQUE,
       description TEXT NOT NULL DEFAULT '',
       active INTEGER NOT NULL DEFAULT 1,
@@ -97,13 +97,14 @@ export function seedDevData(db) {
 
   const categoryCount = db.prepare("SELECT COUNT(*) AS count FROM categories").get().count;
   if (categoryCount === 0) {
-    db.prepare("INSERT INTO categories (name) VALUES (?)").run("Bakso & Mie");
+    db.prepare("INSERT INTO categories (name) VALUES (?)").run("Sembako");
     db.prepare("INSERT INTO categories (name) VALUES (?)").run("Minuman");
   }
 
   const productCount = db.prepare("SELECT COUNT(*) AS count FROM products").get().count;
   if (productCount === 0) {
-    const categoryId = db.prepare("SELECT id FROM categories WHERE name = ?").get("Bakso & Mie").id;
+    const sembakoId = db.prepare("SELECT id FROM categories WHERE name = ?").get("Sembako").id;
+    const minumanId = db.prepare("SELECT id FROM categories WHERE name = ?").get("Minuman").id;
     const insertProduct = db.prepare(`
       INSERT INTO products (name, category_id, price, unit, barcode, description, active)
       VALUES (?, ?, ?, ?, ?, ?, 1)
@@ -111,12 +112,13 @@ export function seedDevData(db) {
     const stock = db.prepare("INSERT INTO stocks (product_id, quantity) VALUES (?, ?)");
 
     const samples = [
-      ["Bakso Original", 15000, "pcs", "899001000001", "Bakso klasik dengan kuah hangat gurih.", 18],
-      ["Bakso Urat", 20000, "pcs", "899001000002", "Tekstur lebih mantap untuk pecinta bakso urat.", 9],
-      ["Mie Ayam", 13000, "pcs", "899001000003", "Mie ayam sederhana untuk makan siang.", 0]
+      ["Beras Premium 5kg", sembakoId, 78000, "kg", "899001100001", "Beras premium kemasan 5kg.", 12],
+      ["Minyak Goreng 1L", sembakoId, 19500, "liter", "899001100002", "Minyak goreng kemasan 1 liter.", 7],
+      ["Gula Pasir 1kg", sembakoId, 16000, "kg", "899001100003", "Gula pasir kemasan 1kg.", 0],
+      ["Air Mineral 600ml", minumanId, 4000, "ml", "899001100004", "Air mineral botol 600ml.", 24]
     ];
 
-    for (const [name, price, unit, barcode, description, quantity] of samples) {
+    for (const [name, categoryId, price, unit, barcode, description, quantity] of samples) {
       const result = insertProduct.run(name, categoryId, price, unit, barcode, description);
       stock.run(Number(result.lastInsertRowid), quantity);
     }

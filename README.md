@@ -1,6 +1,6 @@
 # Groceries POS + Website Catalog Integration
 
-Repository konsep untuk integrasi POS toko groceries dengan website company profile dan katalog produk.
+Repository prototype untuk integrasi POS toko groceries dengan website company profile + katalog produk.
 
 ## Tujuan
 - POS menjadi sumber utama data produk, stok, dan penjualan untuk 1 toko.

@@ -1,4 +1,4 @@
-# P001 Bakso POS MVP
+# Groceries POS MVP
 
 Local-only Node.js + SQLite foundation for POS/admin + website catalog sync.
 
@@ -32,10 +32,11 @@ Seeded users:
 - `admin` / `admin123`
 - `cashier` / `admin123`
 
-Seeded catalog:
-- Bakso Original
-- Bakso Urat
-- Mie Ayam
+Seeded catalog (groceries examples):
+- Beras Premium 5kg
+- Minyak Goreng 1L
+- Gula Pasir 1kg
+- Air Mineral 600ml
 
 SQLite file is created at `app/data/dev.sqlite` by default.
 

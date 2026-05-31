@@ -53,6 +53,7 @@ function mapCatalogProduct(row) {
     priceLabel: rupiah(row.price),
     unit: row.unit,
     barcode: row.barcode,
+    category: row.category_name ?? null,
     stockStatus: row.quantity > 0 ? "available" : "out_of_stock",
     whatsappText: `Halo, saya mau tanya ${row.name}.`
   };
@@ -61,8 +62,10 @@ function mapCatalogProduct(row) {
 function getCatalogProducts() {
   const stmt = db.prepare(`
     SELECT p.id, p.name, p.description, p.price, p.unit, p.barcode,
+           c.name AS category_name,
            COALESCE(s.quantity, 0) AS quantity
     FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
     LEFT JOIN stocks s ON s.product_id = p.id
     WHERE p.active = 1
     ORDER BY p.name ASC
