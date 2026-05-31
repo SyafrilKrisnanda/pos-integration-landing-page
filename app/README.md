@@ -1,48 +1,53 @@
-# P001 Bakso Pak Budi POS MVP
+# P001 Bakso POS MVP
 
-Local-only Node.js + PostgreSQL POS/admin backend for Phase 2.
+Local-only Node.js + SQLite foundation for POS/admin + website catalog sync.
 
 ## Current status
 
-Scaffolded for local development. PostgreSQL is required before running with real data.
-No deployment/public port is configured.
+This milestone is intentionally small but runnable:
+- SQLite schema + dev seed data
+- local Express server
+- public catalog API
+- admin product list API
+- basic dashboard summary API
+- static `site/` served from the same local server
 
-## Setup later
+No production deploy and no public port exposure.
+
+## Setup
 
 ```bash
-cd /home/synner/.openclaw/workspace/projects/P001-bakso-pak-budi/app
+cd /home/synner/.openclaw/workspace/pos-integration-landing-page/app
 cp .env.example .env
 npm install
 npm run check
 npm start
 ```
 
-Docker local PostgreSQL option:
+Server binds to `127.0.0.1` only.
 
-```bash
-docker compose up -d postgres
-npm start
-```
+## Default local data
 
-The compose file binds PostgreSQL to `127.0.0.1:5432` only and auto-runs `db/schema.sql` on first initialization.
+Seeded users:
+- `admin` / `admin123`
+- `cashier` / `admin123`
 
-Default local dev login after startup:
+Seeded catalog:
+- Bakso Original
+- Bakso Urat
+- Mie Ayam
 
-- username: `admin`
-- password: `admin123`
+SQLite file is created at `app/data/dev.sqlite` by default.
 
-Before production, change `.env` secrets and passwords.
+## Endpoints
 
-## Pages
-
-- `/` public menu
-- `/admin` admin dashboard/menu management
-- `/pos` cashier POS screen
-
-## API
-
-- `GET /api/menus`
-- `POST /api/admin/menus`
-- `PATCH /api/admin/menus/:id`
-- `POST /api/admin/sales`
+- `GET /api/health`
+- `GET /api/catalog/products`
+- `GET /api/admin/products`
 - `GET /api/admin/dashboard`
+
+## Notes
+
+- Website catalog should only expose stock status: `available` / `out_of_stock`.
+- Raw stock quantity is kept for admin/POS use only.
+- This is still a prototype foundation, not full cashier workflow yet.

@@ -1,0 +1,131 @@
+import fs from "node:fs";
+import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import bcrypt from "bcryptjs";
+
+export const DB_PATH = process.env.DB_PATH || path.resolve("./data/dev.sqlite");
+
+function ensureDirForFile(filePath) {
+  const dir = path.dirname(filePath);
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+export function openDb() {
+  ensureDirForFile(DB_PATH);
+  const db = new DatabaseSync(DB_PATH);
+  db.exec("PRAGMA foreign_keys = ON;");
+  db.exec("PRAGMA journal_mode = WAL;");
+  return db;
+}
+
+export function initSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      role TEXT NOT NULL CHECK(role IN ('owner_admin','cashier')),
+      password_hash TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      category_id INTEGER,
+      price INTEGER NOT NULL CHECK(price >= 0),
+      unit TEXT NOT NULL CHECK(unit IN ('pcs','pack')),
+      barcode TEXT UNIQUE,
+      description TEXT NOT NULL DEFAULT '',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(category_id) REFERENCES categories(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS stocks (
+      product_id INTEGER PRIMARY KEY,
+      quantity INTEGER NOT NULL CHECK(quantity >= 0),
+      last_updated_by INTEGER,
+      last_updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE,
+      FOREIGN KEY(last_updated_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cashier_id INTEGER NOT NULL,
+      total INTEGER NOT NULL CHECK(total >= 0),
+      payment_method TEXT NOT NULL CHECK(payment_method IN ('cash','qris','other')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(cashier_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS transaction_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaction_id INTEGER NOT NULL,
+      product_id INTEGER NOT NULL,
+      quantity INTEGER NOT NULL CHECK(quantity > 0),
+      unit_price INTEGER NOT NULL CHECK(unit_price >= 0),
+      subtotal INTEGER NOT NULL CHECK(subtotal >= 0),
+      FOREIGN KEY(transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+      FOREIGN KEY(product_id) REFERENCES products(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
+    CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
+    CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
+    CREATE INDEX IF NOT EXISTS idx_transaction_items_tx ON transaction_items(transaction_id);
+  `);
+}
+
+export function seedDevData(db) {
+  const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
+  if (userCount === 0) {
+    const passwordHash = bcrypt.hashSync("admin123", 10);
+    db.prepare("INSERT INTO users (username, role, password_hash) VALUES (?, ?, ?)").run("admin", "owner_admin", passwordHash);
+    db.prepare("INSERT INTO users (username, role, password_hash) VALUES (?, ?, ?)").run("cashier", "cashier", passwordHash);
+  }
+
+  const categoryCount = db.prepare("SELECT COUNT(*) AS count FROM categories").get().count;
+  if (categoryCount === 0) {
+    db.prepare("INSERT INTO categories (name) VALUES (?)").run("Bakso & Mie");
+    db.prepare("INSERT INTO categories (name) VALUES (?)").run("Minuman");
+  }
+
+  const productCount = db.prepare("SELECT COUNT(*) AS count FROM products").get().count;
+  if (productCount === 0) {
+    const categoryId = db.prepare("SELECT id FROM categories WHERE name = ?").get("Bakso & Mie").id;
+    const insertProduct = db.prepare(`
+      INSERT INTO products (name, category_id, price, unit, barcode, description, active)
+      VALUES (?, ?, ?, ?, ?, ?, 1)
+    `);
+    const stock = db.prepare("INSERT INTO stocks (product_id, quantity) VALUES (?, ?)");
+
+    const samples = [
+      ["Bakso Original", 15000, "pcs", "899001000001", "Bakso klasik dengan kuah hangat gurih.", 18],
+      ["Bakso Urat", 20000, "pcs", "899001000002", "Tekstur lebih mantap untuk pecinta bakso urat.", 9],
+      ["Mie Ayam", 13000, "pcs", "899001000003", "Mie ayam sederhana untuk makan siang.", 0]
+    ];
+
+    for (const [name, price, unit, barcode, description, quantity] of samples) {
+      const result = insertProduct.run(name, categoryId, price, unit, barcode, description);
+      stock.run(Number(result.lastInsertRowid), quantity);
+    }
+  }
+}
+
+export function initDb() {
+  const db = openDb();
+  initSchema(db);
+  seedDevData(db);
+  return db;
+}
