@@ -21,6 +21,7 @@ function record(name, ok, detail = "") {
 function assert(condition, message) { if (!condition) throw new Error(message); }
 function asArray(payload) { return Array.isArray(payload?.items) ? payload.items : []; }
 function responseItem(payload) { return payload?.item || payload?.product || payload?.sku || payload; }
+function compactCurrencyLabel(value) { return String(value ?? "").replace(/\s+/g, ""); }
 
 async function request(method, urlPath, { body, cookie } = {}) {
   const res = await fetch(`${baseUrl}${urlPath}`, {
@@ -91,6 +92,27 @@ async function main() {
     cashierCookie = await login("cashier");
   });
 
+  await runTest("seeded Baterai AAA exposes ecer and pack variants consistently", async () => {
+    const products = await request("GET", "/api/admin/products", { cookie: adminCookie });
+    assert(products.status === 200, `admin products expected 200, got ${products.status}`);
+    const battery = asArray(products.json).find((item) => item.name === "Baterai AAA");
+    assert(battery, "seeded Baterai AAA product missing");
+    assert(battery.baseUnit === "pcs", `Baterai AAA baseUnit expected pcs, got ${battery.baseUnit}`);
+    assert(externalBaseUrl || battery.quantity === 24, `seeded Baterai AAA stock expected 24 pcs, got ${battery.quantity}`);
+
+    const skus = await request("GET", `/api/admin/products/${battery.id}/skus`, { cookie: adminCookie });
+    assert(skus.status === 200, `Baterai AAA SKU list expected 200, got ${skus.status}`);
+    const ecer = asArray(skus.json).find((item) => item.name === "Ecer");
+    const pack = asArray(skus.json).find((item) => item.name === "Pack 4");
+    assert(ecer?.sellUnit === "pcs" && ecer?.conversionQty === 1 && ecer?.price === 3000, "seeded Baterai AAA ecer SKU mismatch");
+    assert(pack?.sellUnit === "pack" && pack?.conversionQty === 4 && pack?.price === 10000, "seeded Baterai AAA pack SKU mismatch");
+
+    const search = await request("GET", "/api/cashier/products/search?q=Baterai", { cookie: cashierCookie });
+    assert(search.status === 200, `Baterai AAA cashier search expected 200, got ${search.status}`);
+    assert(asArray(search.json).some((item) => item.skuId === ecer.id && item.displayName === "Baterai AAA - Ecer"), "seeded ecer SKU missing/misnamed in cashier search");
+    assert(asArray(search.json).some((item) => item.skuId === pack.id && item.displayName === "Baterai AAA - Pack 4" && item.stockStatus === "available"), "seeded pack SKU missing/unavailable in cashier search");
+  });
+
   await runTest("setup product with ecer and pack SKU variants", async () => {
     const create = await request("POST", "/api/admin/products", {
       cookie: adminCookie,
@@ -137,8 +159,11 @@ async function main() {
     assert(tx?.id, "checkout response missing transaction id");
     checkoutTransactionId = tx.id;
     assert(tx.total === 13000, `expected total 13000, got ${tx?.total}`);
+    assert(compactCurrencyLabel(tx.totalLabel) === "Rp13.000", `expected receipt totalLabel Rp13.000, got ${tx?.totalLabel}`);
+    assert(tx.paymentMethod === "qris", `expected receipt paymentMethod qris, got ${tx?.paymentMethod}`);
     assert(Array.isArray(tx.items) && tx.items.length === 2, "receipt items missing");
-    assert(tx.items.some((item) => item.skuId === packSkuId && item.baseUnitsConsumed === 4), "pack receipt did not snapshot conversion/base consumption");
+    assert(tx.items.some((item) => item.skuId === packSkuId && item.displayName === "Smoke Baterai AAA - Pack 4" && item.quantitySold === 1 && item.baseUnitsConsumed === 4 && compactCurrencyLabel(item.subtotalLabel) === "Rp10.000"), "pack receipt did not snapshot display/conversion/subtotal data");
+    assert(tx.items.some((item) => item.skuId === ecerSkuId && item.displayName === "Smoke Baterai AAA - Ecer" && item.quantitySold === 1 && item.baseUnitsConsumed === 1 && compactCurrencyLabel(item.unitPriceLabel) === "Rp3.000"), "ecer receipt did not snapshot display/conversion/price data");
     const qty = await productQuantity(adminCookie, productId);
     assert(qty === 1, `expected base stock 1 after consuming 5, got ${qty}`);
   });

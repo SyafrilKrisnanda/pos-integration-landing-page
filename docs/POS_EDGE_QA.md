@@ -10,6 +10,7 @@ Scripts:
 
 - `app/scripts/smoke-pos-edge-cases.mjs` — current V1 POS/catalog edge cases.
 - `app/scripts/smoke-sku-foundation.mjs` — Slice A product-master + SKU foundation coverage.
+- `app/scripts/smoke-cashier-variants.mjs` — cashier SKU checkout/conversion coverage, including seeded Baterai AAA variant consistency and receipt summary labels.
 
 Run from the app directory:
 
@@ -18,6 +19,7 @@ cd /home/synner/.openclaw/workspace/pos-integration-landing-page/app
 npm run check
 npm run smoke:pos
 npm run smoke:sku-foundation
+npm run smoke:cashier-variants
 ```
 
 Optional: run against an already-running local server:
@@ -26,6 +28,7 @@ Optional: run against an already-running local server:
 cd /home/synner/.openclaw/workspace/pos-integration-landing-page/app
 BASE_URL=http://127.0.0.1:8790 npm run smoke:pos
 BASE_URL=http://127.0.0.1:8790 npm run smoke:sku-foundation
+BASE_URL=http://127.0.0.1:8790 npm run smoke:cashier-variants
 ```
 
 By default each smoke script starts `src/server.js` on `127.0.0.1` with a temporary SQLite database, runs the checks, then stops the child server.
@@ -110,6 +113,7 @@ If endpoint names change, update the smoke script before treating failures as pr
 
 ### Mixed-unit / SKU conversion — Slice B+
 
+- [x] Seeded Baterai AAA exposes `Ecer` (1 pcs) and `Pack 4` (4 pcs) consistently in admin and cashier search. Covered by `npm run smoke:cashier-variants`.
 - [x] One SKU sale can decrement more than 1 base unit. Covered by `npm run smoke:cashier-variants`.
 - [x] If stock is enough for `ecer` but not enough for `pack`, only the `pack` SKU is blocked. Covered by `npm run smoke:cashier-variants`.
 - [x] Inactive SKU is hidden from cashier search. Covered by `npm run smoke:cashier-variants`.
@@ -119,7 +123,8 @@ If endpoint names change, update the smoke script before treating failures as pr
 - [x] Multi-item checkout is atomic: all line items succeed or all fail. Covered by `npm run smoke:cashier-variants`.
 - [ ] Double-submit checkout does not create duplicate transactions.
 - [ ] Concurrent checkout on the same base stock does not create negative inventory.
-- [x] Transaction item stores price snapshot and conversion snapshot. Covered indirectly by checkout + dashboard summary in `npm run smoke:cashier-variants`; direct transaction-item read API is not exposed yet.
+- [x] Receipt response includes transaction id, payment method, total label, item display names, unit labels, quantity sold, subtotal labels, and base-unit consumption. Covered by `npm run smoke:cashier-variants`.
+- [x] Transaction item stores price snapshot and conversion snapshot. Covered directly through local SQLite inspection in `npm run smoke:cashier-variants`; direct transaction-item read API is not exposed yet.
 
 ### Catalog policy clarity
 
@@ -129,4 +134,4 @@ If endpoint names change, update the smoke script before treating failures as pr
 
 ## Current known result
 
-As of the 2026-05-31 sprint, auth/role guard, owner/admin category/product mutation, unique barcode checks, stock audit, public catalog visibility rules, SKU foundation, and cashier SKU checkout/conversion basics have landed. Remaining QA gaps: double-submit idempotency and concurrent checkout/no-negative-stock stress coverage.
+As of the 2026-05-31 sprint, auth/role guard, owner/admin category/product mutation, unique barcode checks, stock audit, public catalog visibility rules, SKU foundation, seeded Baterai AAA variant behavior, receipt summary data, and cashier SKU checkout/conversion basics have landed. Remaining QA gaps: double-submit idempotency and concurrent checkout/no-negative-stock stress coverage.
