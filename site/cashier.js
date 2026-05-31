@@ -73,16 +73,17 @@ function formatReceiptDate(value) {
 
 function renderSearchResults(items = []) {
   if (!items.length) {
-    searchResults.innerHTML = `<article class="admin-row"><div><strong>Tidak ada SKU sellable.</strong><br><small>Cek barcode, status aktif, atau stok base unit.</small></div></article>`;
+    searchResults.innerHTML = `<article class="admin-row empty-row"><div><strong>Tidak ada SKU sellable.</strong><br><small>Cek barcode, status aktif, atau stok base unit.</small></div></article>`;
     return;
   }
   searchResults.innerHTML = items.map((item) => `
-    <article class="admin-row">
-      <div>
-        <strong>${escapeHtml(item.displayName)}</strong><br>
-        <small>${escapeHtml(item.categoryName || "Tanpa kategori")} • ${escapeHtml(item.priceLabel)} / ${escapeHtml(item.sellUnit)} • konversi ${item.conversionQty} base unit • barcode ${escapeHtml(item.barcode || "-")}</small>
+    <article class="admin-row pos-row sku-row">
+      <div class="row-main">
+        <strong>${escapeHtml(item.displayName)}</strong>
+        <small>${escapeHtml(item.categoryName || "Tanpa kategori")} • konversi ${item.conversionQty} base unit • barcode ${escapeHtml(item.barcode || "-")}</small>
       </div>
-      <div class="admin-actions">
+      <div class="row-side">
+        <span class="price-pill">${escapeHtml(item.priceLabel)} / ${escapeHtml(item.sellUnit)}</span>
         <button type="button" class="button small primary" data-add-sku="${item.skuId}">Tambah</button>
       </div>
     </article>
@@ -113,16 +114,17 @@ function filteredCatalog() {
 function renderCatalog() {
   const items = filteredCatalog();
   if (!items.length) {
-    catalogList.innerHTML = `<article class="admin-row"><div><strong>Belum ada SKU di kategori ini.</strong></div></article>`;
+    catalogList.innerHTML = `<article class="admin-row empty-row"><div><strong>Belum ada SKU di kategori ini.</strong></div></article>`;
     return;
   }
   catalogList.innerHTML = items.map((item) => `
-    <article class="admin-row">
-      <div>
-        <strong>${escapeHtml(item.displayName)}</strong><br>
-        <small>${escapeHtml(item.categoryName || "Tanpa kategori")} • ${escapeHtml(item.priceLabel)} / ${escapeHtml(item.sellUnit)} • konversi ${item.conversionQty} base unit</small>
+    <article class="admin-row pos-row sku-row">
+      <div class="row-main">
+        <strong>${escapeHtml(item.displayName)}</strong>
+        <small>${escapeHtml(item.categoryName || "Tanpa kategori")} • konversi ${item.conversionQty} base unit</small>
       </div>
-      <div class="admin-actions">
+      <div class="row-side">
+        <span class="price-pill">${escapeHtml(item.priceLabel)} / ${escapeHtml(item.sellUnit)}</span>
         <button type="button" class="button small primary" data-catalog-add="${item.skuId}">Tambah</button>
       </div>
     </article>
@@ -135,23 +137,25 @@ function renderCatalog() {
 
 function renderCart() {
   if (!cart.length) {
-    cartList.innerHTML = `<article class="admin-row"><div><strong>Cart kosong.</strong><br><small>Tambahkan SKU dari katalog atau hasil pencarian.</small></div></article>`;
+    cartList.innerHTML = `<article class="admin-row empty-row"><div><strong>Cart kosong.</strong><br><small>Tambahkan SKU dari katalog atau hasil pencarian.</small></div></article>`;
     return;
   }
   const total = cart.reduce((sum, line) => sum + lineSubtotal(line), 0);
   cartList.innerHTML = cart.map((line) => `
-    <article class="admin-row">
-      <div>
-        <strong>${escapeHtml(line.displayName)}</strong><br>
-        <small>${rupiah(line.price)} / ${escapeHtml(line.sellUnit)} • qty ${line.quantity} • konsumsi ${line.quantity * line.conversionQty} base unit • subtotal ${rupiah(lineSubtotal(line))}</small>
+    <article class="admin-row pos-row cart-row">
+      <div class="row-main">
+        <strong>${escapeHtml(line.displayName)}</strong>
+        <small>${rupiah(line.price)} / ${escapeHtml(line.sellUnit)} • konsumsi ${line.quantity * line.conversionQty} base unit</small>
       </div>
-      <div class="admin-actions">
-        <button type="button" class="button small secondary" data-dec="${line.skuId}">−</button>
-        <button type="button" class="button small secondary" data-inc="${line.skuId}">+</button>
-        <button type="button" class="button small secondary" data-remove="${line.skuId}">Hapus</button>
+      <div class="cart-controls" aria-label="Kontrol qty ${escapeHtml(line.displayName)}">
+        <button type="button" class="button small secondary qty-btn" data-dec="${line.skuId}">−</button>
+        <span class="qty-pill">${line.quantity}</span>
+        <button type="button" class="button small secondary qty-btn" data-inc="${line.skuId}">+</button>
+        <strong class="line-subtotal">${rupiah(lineSubtotal(line))}</strong>
+        <button type="button" class="button small secondary remove-btn" data-remove="${line.skuId}">Hapus</button>
       </div>
     </article>
-  `).join("") + `<article class="admin-row"><div><strong>Total: ${rupiah(total)}</strong></div></article>`;
+  `).join("") + `<article class="admin-row cart-total"><span>Total</span><strong>${rupiah(total)}</strong></article>`;
 }
 
 function addToCart(sku) {

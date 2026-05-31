@@ -74,8 +74,8 @@ function renderCategoryOptions(selected = "") {
 function renderCategories() {
   renderCategoryOptions(productForm.elements.category_id.value);
   categoryList.innerHTML = categories.map((c) => `
-    <article class="admin-row">
-      <div><strong>${escapeHtml(c.name)}</strong><br><small>${c.active ? "aktif" : "nonaktif"}</small></div>
+    <article class="admin-row admin-item-row">
+      <div class="row-main"><strong>${escapeHtml(c.name)}</strong><br><small><span class="status-dot ${c.active ? "ok" : "off"}"></span>${c.active ? "aktif" : "nonaktif"}</small></div>
       <div class="admin-actions">
         <button type="button" data-edit-category="${c.id}" class="button small secondary">Edit</button>
         <button type="button" data-delete-category="${c.id}" class="button small secondary">Nonaktifkan</button>
@@ -88,13 +88,13 @@ function renderProducts() {
   productList.innerHTML = products.map((p) => {
     const skus = p.skus || [];
     return `
-    <article class="admin-row">
-      <div>
-        <strong>${escapeHtml(p.name)}</strong> <small>${p.active ? "aktif" : "nonaktif"}</small><br>
+    <article class="admin-row admin-item-row product-row">
+      <div class="row-main">
+        <strong>${escapeHtml(p.name)}</strong> <small><span class="status-dot ${p.active ? "ok" : "off"}"></span>${p.active ? "aktif" : "nonaktif"}</small><br>
         <small>base unit ${escapeHtml(p.baseUnit || p.unit)} • stok ${p.quantity} • ${escapeHtml(p.categoryName || "Tanpa kategori")}</small>
         <div class="sku-list">
-          ${skus.map((sku) => `<small>SKU: ${escapeHtml(sku.name)} • ${escapeHtml(sku.priceLabel)} / ${escapeHtml(sku.sellUnit)} • konversi ${sku.conversionQty} • barcode ${escapeHtml(sku.barcode || "-")} • ${sku.active ? "aktif" : "nonaktif"}
-            <button type="button" data-delete-sku="${sku.id}" class="button small secondary">Nonaktifkan SKU</button></small>`).join("<br>")}
+          ${skus.map((sku) => `<div class="sku-line"><span>SKU: ${escapeHtml(sku.name)} • ${escapeHtml(sku.priceLabel)} / ${escapeHtml(sku.sellUnit)} • konversi ${sku.conversionQty} • barcode ${escapeHtml(sku.barcode || "-")} • ${sku.active ? "aktif" : "nonaktif"}</span>
+            <button type="button" data-delete-sku="${sku.id}" class="button small secondary">Nonaktifkan SKU</button></div>`).join("")}
         </div>
         <form class="admin-form inline sku-form" data-sku-product="${p.id}">
           <input name="name" placeholder="Nama SKU" required />

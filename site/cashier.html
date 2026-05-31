@@ -36,7 +36,7 @@
       </section>
 
       <section class="section menu-section admin-panel" id="cashierPanel" hidden>
-        <div class="section-heading">
+        <div class="section-heading cashier-heading">
           <p class="eyebrow">Cashier</p>
           <h1>Transaksi SKU/variant</h1>
           <p>Scan barcode SKU atau cari manual, lalu checkout. Stok berkurang sesuai konversi base unit.</p>
@@ -51,7 +51,7 @@
 
             <h2 class="search-title">Cari SKU</h2>
             <form class="admin-form inline" id="searchForm">
-              <label>Barcode / nama SKU <input name="term" placeholder="Scan barcode atau ketik nama produk…" autofocus required /></label>
+              <label>Barcode / nama SKU <input name="term" placeholder="Scan atau ketik nama…" autofocus required /></label>
               <button class="button primary" type="submit">Cari</button>
             </form>
             <div class="admin-list" id="searchResults"></div>
@@ -63,7 +63,7 @@
           </section>
 
           <section class="cashier-cart">
-            <h2>Cart</h2>
+            <h2>Cart <span class="section-note">checkout</span></h2>
             <div class="admin-list" id="cartList"></div>
             <form class="admin-form inline" id="checkoutForm">
               <label>Metode bayar
