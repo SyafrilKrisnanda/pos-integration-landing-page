@@ -387,7 +387,15 @@ app.post("/api/cashier/checkout", requireCashierOrOwner, (req, res) => {
         });
       }
       db.exec("COMMIT");
-      response = { id: transactionId, total, totalLabel: rupiah(total), paymentMethod, items: receiptItems };
+      const txRow = db.prepare(`SELECT id, created_at FROM transactions WHERE id = ?`).get(transactionId);
+      response = {
+        id: transactionId,
+        createdAt: txRow?.created_at ?? null,
+        total,
+        totalLabel: rupiah(total),
+        paymentMethod,
+        items: receiptItems
+      };
     } catch (err) { db.exec("ROLLBACK"); throw err; }
     res.status(201).json({ transaction: response });
   } catch (err) { if (err.message?.includes("sku") || err.message?.includes("stock") || err.message?.includes("quantity")) return badRequest(res, err.message); return handleSqlError(res, err); }

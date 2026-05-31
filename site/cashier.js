@@ -61,6 +61,16 @@ function rupiah(amount) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(amount);
 }
 
+function formatReceiptDate(value) {
+  if (!value) return "-";
+  const date = new Date(String(value).replace(" ", "T") + "Z");
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(date);
+}
+
 function renderSearchResults(items = []) {
   if (!items.length) {
     searchResults.innerHTML = `<article class="admin-row"><div><strong>Tidak ada SKU sellable.</strong><br><small>Cek barcode, status aktif, atau stok base unit.</small></div></article>`;
@@ -245,8 +255,35 @@ checkoutForm.addEventListener("submit", async (e) => {
     const data = await api("/api/cashier/checkout", { method: "POST", body: JSON.stringify(payload) });
     const tx = data.transaction;
     receipt.innerHTML = `
-      <article class="admin-row"><div><strong>Transaksi #${tx.id}</strong><br><small>${escapeHtml(tx.paymentMethod)} • total ${escapeHtml(tx.totalLabel)}</small></div></article>
-      ${(tx.items || []).map((item) => `<article class="admin-row"><div><strong>${escapeHtml(item.displayName)}</strong><br><small>qty ${item.quantitySold} ${escapeHtml(item.sellUnit)} • konversi ${item.conversionQty} • konsumsi ${item.baseUnitsConsumed} base unit • ${escapeHtml(item.unitPriceLabel)} • subtotal ${escapeHtml(item.subtotalLabel)}</small></div></article>`).join("")}
+      <div class="receipt-card">
+        <div class="receipt-head">
+          <div>
+            <strong>Receipt #${tx.id}</strong>
+            <small>${escapeHtml(formatReceiptDate(tx.createdAt))}</small>
+          </div>
+          <div class="receipt-meta">
+            <small>Bayar: ${escapeHtml(tx.paymentMethod.toUpperCase())}</small>
+          </div>
+        </div>
+        <div class="receipt-lines">
+          ${(tx.items || []).map((item) => `
+            <div class="receipt-line">
+              <div>
+                <strong>${escapeHtml(item.displayName)}</strong>
+                <small>${item.quantitySold} × ${escapeHtml(item.sellUnit)} • ${escapeHtml(item.unitPriceLabel)}</small>
+              </div>
+              <div class="receipt-line-right">
+                <strong>${escapeHtml(item.subtotalLabel)}</strong>
+                <small>${item.baseUnitsConsumed} base unit</small>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+        <div class="receipt-total">
+          <strong>Total</strong>
+          <strong>${escapeHtml(tx.totalLabel)}</strong>
+        </div>
+      </div>
     `;
     receiptBox.hidden = false;
     cart = [];
