@@ -22,10 +22,17 @@ function toWaLink(message) {
 }
 
 function productImageSeed(name) {
-  // pick one of existing assets as a safe dummy thumbnail
+  const key = String(name || "").toLowerCase();
+
+  if (key.includes("beras")) return "./assets/products/rice-premium-5kg.png";
+  if (key.includes("minyak")) return "./assets/products/minyak-goreng-1l.png";
+  if (key.includes("gula")) return "./assets/products/gula-pasir-1kg.png";
+  if (key.includes("air mineral") || key.includes("mineral")) return "./assets/products/air-mineral-600ml.png";
+
+  // fallback dummy
   const assets = ["bakso-hero.png", "bakso-urat.png", "mie-ayam.png"];
   let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
   return `./assets/${assets[hash % assets.length]}`;
 }
 
