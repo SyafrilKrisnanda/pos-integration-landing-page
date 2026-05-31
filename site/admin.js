@@ -85,18 +85,33 @@ function renderCategories() {
 }
 
 function renderProducts() {
-  productList.innerHTML = products.map((p) => `
+  productList.innerHTML = products.map((p) => {
+    const skus = p.skus || [];
+    return `
     <article class="admin-row">
       <div>
         <strong>${escapeHtml(p.name)}</strong> <small>${p.active ? "aktif" : "nonaktif"}</small><br>
-        <small>${escapeHtml(p.priceLabel)} • stok ${p.quantity} • ${escapeHtml(p.categoryName || "Tanpa kategori")} • barcode ${escapeHtml(p.barcode || "-")}</small>
+        <small>base unit ${escapeHtml(p.baseUnit || p.unit)} • stok ${p.quantity} • ${escapeHtml(p.categoryName || "Tanpa kategori")}</small>
+        <div class="sku-list">
+          ${skus.map((sku) => `<small>SKU: ${escapeHtml(sku.name)} • ${escapeHtml(sku.priceLabel)} / ${escapeHtml(sku.sellUnit)} • konversi ${sku.conversionQty} • barcode ${escapeHtml(sku.barcode || "-")} • ${sku.active ? "aktif" : "nonaktif"}
+            <button type="button" data-delete-sku="${sku.id}" class="button small secondary">Nonaktifkan SKU</button></small>`).join("<br>")}
+        </div>
+        <form class="admin-form inline sku-form" data-sku-product="${p.id}">
+          <input name="name" placeholder="Nama SKU" required />
+          <input name="price" type="number" min="0" step="1" placeholder="Harga" required />
+          <select name="sellUnit" required><option>pcs</option><option>pack</option><option>kg</option><option>g</option><option>liter</option><option>ml</option><option>btl</option><option>box</option></select>
+          <input name="conversionQty" type="number" min="1" step="1" value="1" title="Konversi ke base unit" required />
+          <input name="barcode" placeholder="Barcode (opsional)" />
+          <label class="checkbox"><input name="active" type="checkbox" checked /> Aktif</label>
+          <button class="button small primary" type="submit">Tambah SKU</button>
+        </form>
       </div>
       <div class="admin-actions">
         <button type="button" data-edit-product="${p.id}" class="button small secondary">Edit</button>
         <button type="button" data-delete-product="${p.id}" class="button small secondary">Nonaktifkan</button>
       </div>
-    </article>
-  `).join("");
+    </article>`;
+  }).join("");
 }
 
 function resetCategoryForm() {
@@ -188,6 +203,7 @@ productList.addEventListener("click", async (e) => {
     productForm.elements.id.value = p.id;
     productForm.elements.name.value = p.name;
     productForm.elements.price.value = p.price;
+    productForm.elements.baseUnit.value = p.baseUnit || p.unit;
     productForm.elements.unit.value = p.unit;
     productForm.elements.barcode.value = p.barcode || "";
     productForm.elements.quantity.value = p.quantity;
@@ -201,6 +217,30 @@ productList.addEventListener("click", async (e) => {
     await loadAll();
     showMessage("Produk dinonaktifkan.");
   }
+});
+
+productList.addEventListener("submit", async (e) => {
+  const form = e.target.closest("[data-sku-product]");
+  if (!form) return;
+  e.preventDefault();
+  try {
+    await api(`/api/admin/products/${form.dataset.skuProduct}/skus`, {
+      method: "POST",
+      body: JSON.stringify(formJson(form))
+    });
+    await loadAll();
+    showMessage("SKU tersimpan.");
+  } catch (err) {
+    showMessage(err.message, true);
+  }
+});
+
+productList.addEventListener("click", async (e) => {
+  const skuId = e.target.closest("[data-delete-sku]")?.dataset.deleteSku;
+  if (!skuId) return;
+  await api(`/api/admin/skus/${skuId}`, { method: "DELETE" });
+  await loadAll();
+  showMessage("SKU dinonaktifkan.");
 });
 
 (async function boot() {

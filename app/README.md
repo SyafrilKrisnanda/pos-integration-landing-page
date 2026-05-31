@@ -9,9 +9,10 @@ This milestone is intentionally small but runnable:
 - local Express server bound to `127.0.0.1`
 - session login/logout with owner/admin role guard
 - public catalog API that hides inactive and out-of-stock products
-- owner/admin CRUD APIs for categories and products
-- unique product barcode enforcement
-- stock quantity updates with audit history
+- product master + SKU/variant schema (`product_masters`, `product_skus`)
+- owner/admin CRUD APIs for categories, product masters, and SKUs
+- unique SKU barcode enforcement
+- stock quantity updates in product base unit with audit history
 - basic dashboard summary API
 - static `site/` catalog and minimal `site/admin.html` UI served from the same local server
 
@@ -55,7 +56,7 @@ Open:
 - Catalog: <http://127.0.0.1:8790/>
 - Local admin: <http://127.0.0.1:8790/admin.html>
 
-Login with `admin` / `admin123`, then create/edit categories, create/edit products, set stock, and verify products with `active = false` or `quantity = 0` disappear from the public catalog.
+Login with `admin` / `admin123`, then create/edit categories, create/edit product masters, add SKUs/variants, set base-unit stock, and verify inactive products/SKUs or unsellable stock disappear from the public catalog.
 
 ## Endpoints
 
@@ -74,14 +75,24 @@ Owner/admin only:
 - `DELETE /api/admin/categories/:id` (soft-disable)
 - `GET /api/admin/products`
 - `POST /api/admin/products`
-- `PUT /api/admin/products/:id`
+- `PUT`/`PATCH /api/admin/products/:id`
 - `DELETE /api/admin/products/:id` (soft-disable)
-- `POST /api/admin/products/:id/stock`
+- `GET /api/admin/products/:id/skus`
+- `POST /api/admin/products/:id/skus`
+- `PUT`/`PATCH /api/admin/skus/:id`
+- `DELETE /api/admin/skus/:id` (soft-disable)
+- `POST`/`PATCH /api/admin/products/:id/stock`
 - `GET /api/admin/stock-audits`
+
+Cashier/POS:
+- `GET /api/cashier/products/search?barcode=...`
+- `GET /api/cashier/products/search?q=...`
+- `POST /api/cashier/checkout`
 
 ## Notes
 
-- Website catalog only exposes products that are active and in stock; raw stock quantity is kept for admin/POS use only.
+- Website catalog only exposes active product masters with at least one sellable active SKU; raw stock quantity is kept for admin/POS use only.
+- Stock is stored once per product master in `base_unit`; selling a SKU consumes `conversion_qty * quantity_sold`.
+- Legacy `products` rows are retained and mirrored for compatibility during the transition.
 - Admin deletes are intentionally soft-disables for safer local prototyping.
 - Sessions use the dev secret from `.env`; change it before any non-dev use.
-- This is still a prototype foundation, not full cashier workflow yet.

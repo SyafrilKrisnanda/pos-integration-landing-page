@@ -320,13 +320,19 @@ app.post("/api/cashier/checkout", requireCashierOrOwner, (req, res) => {
     db.exec("BEGIN IMMEDIATE");
     try {
       const snapshots = [];
+      const consumptionByProduct = new Map();
+      const stockByProduct = new Map();
       for (const line of lines) {
         const skuId = Number(line.sku_id ?? line.skuId); const quantitySold = asPositiveQuantity(line.quantity ?? line.quantitySold, "quantity");
         const sku = db.prepare(`SELECT ps.*, pm.name AS product_name, pm.active AS product_active, COALESCE(s.quantity, 0) AS stock_qty FROM product_skus ps JOIN product_masters pm ON pm.id = ps.product_id LEFT JOIN stocks s ON s.product_id = pm.id WHERE ps.id = ?`).get(skuId);
         if (!sku || !sku.active || !sku.product_active) throw new Error(`sku ${skuId} is not sellable`);
         const consume = sku.conversion_qty * quantitySold;
-        if (sku.stock_qty < consume) throw new Error(`insufficient stock for sku ${skuId}`);
+        consumptionByProduct.set(sku.product_id, (consumptionByProduct.get(sku.product_id) || 0) + consume);
+        stockByProduct.set(sku.product_id, sku.stock_qty);
         snapshots.push({ sku, quantitySold, consume, subtotal: sku.price * quantitySold });
+      }
+      for (const [productId, consume] of consumptionByProduct.entries()) {
+        if ((stockByProduct.get(productId) || 0) < consume) throw new Error(`insufficient stock for product ${productId}`);
       }
       const total = snapshots.reduce((sum, item) => sum + item.subtotal, 0);
       const tx = db.prepare(`INSERT INTO transactions (cashier_id, total, payment_method) VALUES (?, ?, ?)`).run(user.id, total, paymentMethod);
