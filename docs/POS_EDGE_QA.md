@@ -99,27 +99,27 @@ If endpoint names change, update the smoke script before treating failures as pr
 
 ### Product master + SKU foundation — Slice A
 
-- [ ] Migration creates product masters from seeded/current products.
-- [ ] Migration creates one default SKU per product master.
-- [ ] Product master stores `baseUnit`/`base_unit`.
-- [ ] Product-master stock is stored/updated in base units.
-- [ ] One product master can have multiple active SKUs.
-- [ ] Admin can create/list/update/soft-disable SKUs.
-- [ ] Duplicate barcode across SKUs is rejected.
-- [ ] Inactive SKU is hidden from public catalog.
+- [x] Migration creates product masters from seeded/current products. Covered by `npm run smoke:sku-foundation`.
+- [x] Migration creates one default SKU per product master. Covered by `npm run smoke:sku-foundation`.
+- [x] Product master stores `baseUnit`/`base_unit`. Covered by `npm run smoke:sku-foundation`.
+- [x] Product-master stock is stored/updated in base units. Covered by `npm run smoke:sku-foundation`.
+- [x] One product master can have multiple active SKUs. Covered by `npm run smoke:sku-foundation`.
+- [x] Admin can create/list/update/soft-disable SKUs. Covered by `npm run smoke:sku-foundation`.
+- [x] Duplicate barcode across SKUs is rejected. Covered by `npm run smoke:sku-foundation`.
+- [x] Inactive SKU is hidden from public catalog. Covered by `npm run smoke:sku-foundation`.
 
 ### Mixed-unit / SKU conversion — Slice B+
 
-- [ ] One SKU sale can decrement more than 1 base unit.
-- [ ] If stock is enough for `ecer` but not enough for `pack`, only the `pack` SKU is blocked.
-- [ ] Inactive SKU is hidden from cashier search.
+- [x] One SKU sale can decrement more than 1 base unit. Covered by `npm run smoke:cashier-variants`.
+- [x] If stock is enough for `ecer` but not enough for `pack`, only the `pack` SKU is blocked. Covered by `npm run smoke:cashier-variants`.
+- [x] Inactive SKU is hidden from cashier search. Covered by `npm run smoke:cashier-variants`.
 
 ### Checkout integrity
 
-- [ ] Multi-item checkout is atomic: all line items succeed or all fail.
+- [x] Multi-item checkout is atomic: all line items succeed or all fail. Covered by `npm run smoke:cashier-variants`.
 - [ ] Double-submit checkout does not create duplicate transactions.
 - [ ] Concurrent checkout on the same base stock does not create negative inventory.
-- [ ] Transaction item stores price snapshot and conversion snapshot.
+- [x] Transaction item stores price snapshot and conversion snapshot. Covered indirectly by checkout + dashboard summary in `npm run smoke:cashier-variants`; direct transaction-item read API is not exposed yet.
 
 ### Catalog policy clarity
 
@@ -129,4 +129,4 @@ If endpoint names change, update the smoke script before treating failures as pr
 
 ## Current known result
 
-As of the 2026-05-31 sprint, auth/role guard, owner/admin category/product mutation, unique barcode checks, stock audit, and public catalog visibility rules have landed. Cashier checkout remains future scope, and mixed-unit retail support (ecer vs pack / SKU conversion) still requires PRD and schema changes before implementation.
+As of the 2026-05-31 sprint, auth/role guard, owner/admin category/product mutation, unique barcode checks, stock audit, public catalog visibility rules, SKU foundation, and cashier SKU checkout/conversion basics have landed. Remaining QA gaps: double-submit idempotency and concurrent checkout/no-negative-stock stress coverage.

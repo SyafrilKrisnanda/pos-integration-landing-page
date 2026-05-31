@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cashier Lokal | Groceries POS</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header" aria-label="Header cashier">
+      <a class="brand" href="./" aria-label="Kembali ke katalog">
+        <span class="brand-mark" aria-hidden="true">GRC</span>
+        <span>Cashier Lokal</span>
+      </a>
+      <div class="header-actions">
+        <nav class="nav" aria-label="Navigasi cashier">
+          <a href="./">Katalog</a>
+          <a href="./admin.html">Admin</a>
+        </nav>
+        <button class="button small secondary" id="logoutBtn" type="button" hidden>Logout</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="section menu-section admin-panel" id="loginPanel">
+        <div class="section-heading">
+          <p class="eyebrow">Local only</p>
+          <h1>Login cashier</h1>
+          <p>Default dev: <code>cashier</code> / <code>admin123</code>.</p>
+        </div>
+        <form class="admin-form" id="loginForm">
+          <label>Username <input name="username" autocomplete="username" required /></label>
+          <label>Password <input name="password" type="password" autocomplete="current-password" required /></label>
+          <button class="button primary" type="submit">Login</button>
+        </form>
+      </section>
+
+      <section class="section menu-section admin-panel" id="cashierPanel" hidden>
+        <div class="section-heading">
+          <p class="eyebrow">Cashier</p>
+          <h1>Transaksi SKU/variant</h1>
+          <p>Scan barcode SKU atau cari manual, lalu checkout. Stok berkurang sesuai konversi base unit.</p>
+        </div>
+
+        <div class="admin-message" id="message" role="status" hidden></div>
+
+        <section class="admin-box">
+          <h2>Cari SKU</h2>
+          <form class="admin-form inline" id="searchForm">
+            <label>Barcode / nama SKU <input name="term" placeholder="Scan barcode atau ketik nama produk…" autofocus required /></label>
+            <button class="button primary" type="submit">Cari</button>
+          </form>
+          <div class="admin-list" id="searchResults"></div>
+        </section>
+
+        <section class="admin-box">
+          <h2>Cart</h2>
+          <div class="admin-list" id="cartList"></div>
+          <form class="admin-form inline" id="checkoutForm">
+            <label>Metode bayar
+              <select name="paymentMethod">
+                <option value="cash">Cash</option>
+                <option value="qris">QRIS</option>
+                <option value="other">Lainnya</option>
+              </select>
+            </label>
+            <button class="button primary" type="submit">Checkout</button>
+            <button class="button secondary" id="clearCart" type="button">Kosongkan cart</button>
+          </form>
+        </section>
+
+        <section class="admin-box" id="receiptBox" hidden>
+          <h2>Receipt</h2>
+          <div id="receipt"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./cashier.js"></script>
+  </body>
+</html>

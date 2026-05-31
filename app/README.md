@@ -14,7 +14,7 @@ This milestone is intentionally small but runnable:
 - unique SKU barcode enforcement
 - stock quantity updates in product base unit with audit history
 - basic dashboard summary API
-- static `site/` catalog and minimal `site/admin.html` UI served from the same local server
+- static `site/` catalog plus minimal local admin and cashier UIs served from the same local server
 
 No production deploy and no public port exposure.
 
@@ -55,8 +55,9 @@ npm start
 Open:
 - Catalog: <http://127.0.0.1:8790/>
 - Local admin: <http://127.0.0.1:8790/admin.html>
+- Local cashier: <http://127.0.0.1:8790/cashier.html>
 
-Login with `admin` / `admin123`, then create/edit categories, create/edit product masters, add SKUs/variants, set base-unit stock, and verify inactive products/SKUs or unsellable stock disappear from the public catalog.
+Login with `admin` / `admin123`, then create/edit categories, create/edit product masters, add SKUs/variants, set base-unit stock, and verify inactive products/SKUs or unsellable stock disappear from the public catalog. Login with `cashier` / `admin123` to scan/search SKU variants, build a cart, checkout, and view the receipt summary.
 
 ## Endpoints
 

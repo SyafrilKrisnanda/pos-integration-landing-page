@@ -11,7 +11,7 @@ Implemented in the local `app/` prototype:
   - `transaction_items` has SKU snapshot columns for future-proof sales history.
 - Safe dev migration keeps legacy `products` rows and creates one default SKU per existing product.
 - Admin APIs now support product master CRUD, SKU CRUD, and base-unit stock updates.
-- Cashier foundation APIs support SKU search and atomic checkout with conversion-based stock decrement.
+- Cashier flow supports barcode/manual SKU search, cart checkout, receipt summary, and atomic conversion-based stock decrement.
 - Public catalog still does not leak raw stock quantity; it only returns active, sellable products.
 
 See also:
@@ -29,4 +29,5 @@ From `app/`:
 npm run check
 npm run smoke:pos
 npm run smoke:sku-foundation
+npm run smoke:cashier-variants
 ```

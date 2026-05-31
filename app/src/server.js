@@ -337,12 +337,28 @@ app.post("/api/cashier/checkout", requireCashierOrOwner, (req, res) => {
       const total = snapshots.reduce((sum, item) => sum + item.subtotal, 0);
       const tx = db.prepare(`INSERT INTO transactions (cashier_id, total, payment_method) VALUES (?, ?, ?)`).run(user.id, total, paymentMethod);
       const transactionId = Number(tx.lastInsertRowid);
+      const receiptItems = [];
       for (const item of snapshots) {
         db.prepare(`UPDATE stocks SET quantity = quantity - ?, last_updated_by = ?, last_updated_at = datetime('now') WHERE product_id = ?`).run(item.consume, user.id, item.sku.product_id);
         db.prepare(`INSERT INTO transaction_items (transaction_id, product_id, sku_id, sku_name_snapshot, sell_unit_snapshot, conversion_qty_snapshot, quantity, quantity_sold, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(transactionId, item.sku.product_id, item.sku.id, item.sku.name, item.sku.sell_unit, item.sku.conversion_qty, item.quantitySold, item.quantitySold, item.sku.price, item.subtotal);
+        receiptItems.push({
+          productId: item.sku.product_id,
+          skuId: item.sku.id,
+          productName: item.sku.product_name,
+          skuName: item.sku.name,
+          displayName: item.sku.name === "Default" ? item.sku.product_name : `${item.sku.product_name} - ${item.sku.name}`,
+          quantitySold: item.quantitySold,
+          sellUnit: item.sku.sell_unit,
+          conversionQty: item.sku.conversion_qty,
+          baseUnitsConsumed: item.consume,
+          unitPrice: item.sku.price,
+          unitPriceLabel: rupiah(item.sku.price),
+          subtotal: item.subtotal,
+          subtotalLabel: rupiah(item.subtotal)
+        });
       }
       db.exec("COMMIT");
-      response = { id: transactionId, total, totalLabel: rupiah(total), paymentMethod };
+      response = { id: transactionId, total, totalLabel: rupiah(total), paymentMethod, items: receiptItems };
     } catch (err) { db.exec("ROLLBACK"); throw err; }
     res.status(201).json({ transaction: response });
   } catch (err) { if (err.message?.includes("sku") || err.message?.includes("stock") || err.message?.includes("quantity")) return badRequest(res, err.message); return handleSqlError(res, err); }
