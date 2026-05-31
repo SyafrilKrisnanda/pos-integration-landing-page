@@ -68,3 +68,17 @@ Local static files exist in `site/`. Basic content verification, image asset ref
 - User has not separately approved deploy.
 - Public port exposure would be required.
 - Domain/staging target is unclear.
+
+## 2026-05-31 local POS/API sprint check
+
+- `npm run check` passed for `app/src/server.js` and `app/src/db.js`.
+- Local server smoke-tested on `127.0.0.1:8791` with temporary SQLite DB (`/tmp/p001-test.sqlite`).
+- Verified:
+  - `GET /api/health` returns local-only health JSON.
+  - Public catalog excludes seeded out-of-stock product (`Gula Pasir 1kg`).
+  - Admin login works with `admin` / `admin123`.
+  - Owner/admin dashboard requires authenticated session.
+  - Product create works with unique barcode.
+  - Stock update to `0` works and writes audit entry.
+- No public port opened; test server was stopped after smoke test.
+- `npm run smoke:pos` passed: 9/9 checks for auth, role guard, barcode uniqueness, inactive/out-of-stock catalog hiding, and stock audit.

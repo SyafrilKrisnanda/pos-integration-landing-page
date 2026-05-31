@@ -60,6 +60,18 @@ export function initSchema(db) {
       FOREIGN KEY(last_updated_by) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS stock_audits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      previous_quantity INTEGER NOT NULL CHECK(previous_quantity >= 0),
+      new_quantity INTEGER NOT NULL CHECK(new_quantity >= 0),
+      changed_by INTEGER,
+      reason TEXT NOT NULL DEFAULT 'manual update',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE,
+      FOREIGN KEY(changed_by) REFERENCES users(id)
+    );
+
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       cashier_id INTEGER NOT NULL,
@@ -84,6 +96,7 @@ export function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
     CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
     CREATE INDEX IF NOT EXISTS idx_transaction_items_tx ON transaction_items(transaction_id);
+    CREATE INDEX IF NOT EXISTS idx_stock_audits_product_created ON stock_audits(product_id, created_at);
   `);
 }
 

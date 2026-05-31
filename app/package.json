@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "check": "node --check src/server.js && node --check src/db.js"
+    "check": "node --check src/server.js && node --check src/db.js",
+    "smoke:pos": "node scripts/smoke-pos-edge-cases.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

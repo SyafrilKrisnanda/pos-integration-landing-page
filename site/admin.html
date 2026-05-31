@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Lokal | Groceries POS</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header" aria-label="Header admin">
+      <a class="brand" href="./" aria-label="Kembali ke katalog">
+        <span class="brand-mark" aria-hidden="true">GRC</span>
+        <span>Admin Lokal</span>
+      </a>
+      <div class="header-actions">
+        <nav class="nav" aria-label="Navigasi admin">
+          <a href="./">Katalog</a>
+          <a href="#products">Produk</a>
+          <a href="#categories">Kategori</a>
+        </nav>
+        <button class="button small secondary" id="logoutBtn" type="button" hidden>Logout</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="section menu-section admin-panel" id="loginPanel">
+        <div class="section-heading">
+          <p class="eyebrow">Local only</p>
+          <h1>Login owner/admin</h1>
+          <p>Default dev: <code>admin</code> / <code>admin123</code>.</p>
+        </div>
+        <form class="admin-form" id="loginForm">
+          <label>Username <input name="username" autocomplete="username" required /></label>
+          <label>Password <input name="password" type="password" autocomplete="current-password" required /></label>
+          <button class="button primary" type="submit">Login</button>
+        </form>
+      </section>
+
+      <section class="section menu-section admin-panel" id="adminPanel" hidden>
+        <div class="section-heading">
+          <p class="eyebrow">Owner/admin</p>
+          <h1>Kelola katalog & stok</h1>
+          <p id="summary">Memuat ringkasan…</p>
+        </div>
+
+        <div class="admin-message" id="message" role="status" hidden></div>
+
+        <section id="categories" class="admin-box">
+          <h2>Kategori</h2>
+          <form class="admin-form inline" id="categoryForm">
+            <input name="id" type="hidden" />
+            <label>Nama <input name="name" required /></label>
+            <label class="checkbox"><input name="active" type="checkbox" checked /> Aktif</label>
+            <button class="button primary" type="submit">Simpan kategori</button>
+            <button class="button secondary" id="resetCategory" type="button">Reset</button>
+          </form>
+          <div class="admin-list" id="categoryList"></div>
+        </section>
+
+        <section id="products" class="admin-box">
+          <h2>Produk</h2>
+          <form class="admin-form product-form" id="productForm">
+            <input name="id" type="hidden" />
+            <label>Nama <input name="name" required /></label>
+            <label>Harga <input name="price" type="number" min="0" step="1" required /></label>
+            <label>Unit
+              <select name="unit" required>
+                <option>pcs</option><option>pack</option><option>kg</option><option>g</option>
+                <option>liter</option><option>ml</option><option>btl</option><option>box</option>
+              </select>
+            </label>
+            <label>Kategori <select name="category_id" id="productCategory"></select></label>
+            <label>Barcode unik <input name="barcode" placeholder="boleh kosong" /></label>
+            <label>Stok <input name="quantity" type="number" min="0" step="1" value="0" required /></label>
+            <label class="wide">Deskripsi <textarea name="description" rows="2"></textarea></label>
+            <label class="checkbox"><input name="active" type="checkbox" checked /> Aktif tampil di katalog</label>
+            <button class="button primary" type="submit">Simpan produk</button>
+            <button class="button secondary" id="resetProduct" type="button">Reset</button>
+          </form>
+          <div class="admin-list" id="productList"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./admin.js"></script>
+  </body>
+</html>
