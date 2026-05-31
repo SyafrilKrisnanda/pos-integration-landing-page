@@ -219,6 +219,76 @@ async function main() {
     assert(!asArray(ecerSearch.json).some((item) => item.skuId === ecerSkuId), "inactive ecer SKU appears in cashier search");
   });
 
+  await runTest("checkout rejects invalid payment, missing items, and non-positive quantities", async () => {
+    const invalidPayment = await request("POST", "/api/cashier/checkout", {
+      cookie: cashierCookie,
+      body: { paymentMethod: "voucher", items: [{ skuId: packSkuId, quantity: 1 }] }
+    });
+    assert(invalidPayment.status === 400, `invalid payment expected 400, got ${invalidPayment.status}: ${invalidPayment.text}`);
+
+    const missingItems = await request("POST", "/api/cashier/checkout", {
+      cookie: cashierCookie,
+      body: { paymentMethod: "cash", items: [] }
+    });
+    assert(missingItems.status === 400, `missing items expected 400, got ${missingItems.status}: ${missingItems.text}`);
+
+    const zeroQuantity = await request("POST", "/api/cashier/checkout", {
+      cookie: cashierCookie,
+      body: { paymentMethod: "cash", items: [{ skuId: packSkuId, quantity: 0 }] }
+    });
+    assert(zeroQuantity.status === 400, `zero quantity expected 400, got ${zeroQuantity.status}: ${zeroQuantity.text}`);
+  });
+
+  await runTest("cashier cannot mutate owner/admin stock or SKU state", async () => {
+    const stock = await request("POST", `/api/admin/products/${productId}/stock`, {
+      cookie: cashierCookie,
+      body: { quantity: 99, reason: "cashier privilege probe" }
+    });
+    assert([401, 403].includes(stock.status), `cashier stock update expected 401/403, got ${stock.status}`);
+
+    const sku = await request("PATCH", `/api/admin/skus/${packSkuId}`, {
+      cookie: cashierCookie,
+      body: { price: 1 }
+    });
+    assert([401, 403].includes(sku.status), `cashier SKU update expected 401/403, got ${sku.status}`);
+  });
+
+  await runTest("concurrent checkout on one remaining unit leaves no negative inventory", async () => {
+    const create = await request("POST", "/api/admin/products", {
+      cookie: adminCookie,
+      body: { name: "Smoke Concurrent Stock", description: "one-unit race smoke", baseUnit: "pcs", unit: "pcs", price: 1111, quantity: 1, active: true }
+    });
+    assert([200, 201].includes(create.status), `concurrent product create expected 200/201, got ${create.status}: ${create.text}`);
+    const concurrentProductId = responseItem(create.json)?.id;
+    const concurrentSkuId = responseItem(create.json)?.skus?.[0]?.id;
+    assert(concurrentProductId && concurrentSkuId, "missing concurrent product/SKU ids");
+
+    const body = { paymentMethod: "cash", items: [{ skuId: concurrentSkuId, quantity: 1 }] };
+    const [first, second] = await Promise.all([
+      request("POST", "/api/cashier/checkout", { cookie: cashierCookie, body }),
+      request("POST", "/api/cashier/checkout", { cookie: cashierCookie, body })
+    ]);
+    const successes = [first, second].filter((res) => [200, 201].includes(res.status));
+    const failures = [first, second].filter((res) => [400, 409].includes(res.status));
+    assert(successes.length === 1, `expected exactly one successful concurrent checkout, got statuses ${first.status}/${second.status}`);
+    assert(failures.length === 1, `expected exactly one rejected concurrent checkout, got statuses ${first.status}/${second.status}`);
+
+    const after = await productQuantity(adminCookie, concurrentProductId);
+    assert(after === 0, `expected stock 0 after concurrent race, got ${after}`);
+
+    if (!externalBaseUrl) {
+      const smokeDb = new DatabaseSync(dbPath, { readOnly: true });
+      try {
+        const soldRows = smokeDb.prepare("SELECT COUNT(*) AS count FROM transaction_items WHERE product_id = ?").get(concurrentProductId).count;
+        assert(soldRows === 1, `expected one persisted sale row for concurrent product, got ${soldRows}`);
+        const stockRow = smokeDb.prepare("SELECT quantity FROM stocks WHERE product_id = ?").get(concurrentProductId);
+        assert(stockRow?.quantity === 0, `DB stock expected 0, got ${stockRow?.quantity}`);
+      } finally {
+        smokeDb.close();
+      }
+    }
+  });
+
   const failed = results.filter((result) => !result.ok);
   console.log(`\nCashier variant smoke result: ${results.length - failed.length}/${results.length} passed`);
   if (failed.length) process.exitCode = 1;
