@@ -100,3 +100,17 @@ Acceptance criteria:
 
 ## Current Recommendation
 Use a simple local-first architecture for V1 prototype unless the user asks otherwise. Prefer SQLite or a small local API over static-only JSON if cashier checkout and stock decrement are in scope, because stock must update transactionally.
+
+## Product gap review — 2026-05-31 local test readiness
+
+See `docs/PRODUCT_GAP_REVIEW_2026-05-31.md` for the detailed Sandy/product review.
+
+Priority cut line for local testing by 18:00:
+
+1. **P0:** prevent UI double-submit checkout while request is in flight.
+2. **P0:** make insufficient stock errors name the affected product/SKU, not only product id.
+3. **P0:** add admin helper copy for base unit vs SKU sell unit vs conversion quantity.
+4. **P0:** make receipt feel test-ready: store/test label, transaction id/date, payment method, line items, total, and ideally a print button.
+5. **P1:** add cash tender/change, faster cashier focus/keyboard flow, checkout stock movement audit, SKU edit UI, and per-product low-stock threshold after the 18:00 cut if needed.
+
+Known acceptable-for-now constraints: integer conversion quantities only, no returns/voids/discounts/taxes, public catalog hides out-of-stock active products, no product images, and no customer online checkout/payment.

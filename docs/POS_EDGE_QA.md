@@ -121,9 +121,12 @@ If endpoint names change, update the smoke script before treating failures as pr
 ### Checkout integrity
 
 - [x] Multi-item checkout is atomic: all line items succeed or all fail. Covered by `npm run smoke:cashier-variants`.
-- [ ] Double-submit checkout does not create duplicate transactions.
-- [ ] Concurrent checkout on the same base stock does not create negative inventory.
+- [ ] UI double-submit guard disables checkout/cart controls while checkout is in flight.
+- [ ] Backend double-submit idempotency does not create duplicate transactions for the same client request.
+- [ ] Concurrent checkout on the same base stock does not create negative inventory under a stress test.
+- [ ] Insufficient-stock error names the affected product/SKU for cashier recovery.
 - [x] Receipt response includes transaction id, payment method, total label, item display names, unit labels, quantity sold, subtotal labels, and base-unit consumption. Covered by `npm run smoke:cashier-variants`.
+- [ ] Receipt UI includes store/test label, cashier/payment context, transaction date/id, and print/share affordance for local testing.
 - [x] Transaction item stores price snapshot and conversion snapshot. Covered directly through local SQLite inspection in `npm run smoke:cashier-variants`; direct transaction-item read API is not exposed yet.
 
 ### Catalog policy clarity
@@ -132,6 +135,16 @@ If endpoint names change, update the smoke script before treating failures as pr
 - [ ] Inactive product is hidden entirely.
 - [ ] Public catalog never leaks base-unit stock quantity even with multiple SKUs.
 
+### Cashier speed and admin usability — local test readiness
+
+- [ ] Barcode/search input refocuses after add and checkout.
+- [ ] Search field clears after a successful barcode add.
+- [ ] Cashier can set quantity quickly without repeated `+`/`−` clicks.
+- [ ] Cash payments can capture tendered amount and change due, or this is explicitly deferred for the tester.
+- [ ] Admin product form explains base unit vs sell unit vs conversion quantity with a concrete pack/ecer example.
+- [ ] Admin UI supports editing an existing SKU, not only add/soft-disable.
+- [ ] Checkout stock movements are visible in audit/ledger view, or transaction history is accepted as the temporary audit source.
+
 ## Current known result
 
-As of the 2026-05-31 sprint, auth/role guard, owner/admin category/product mutation, unique barcode checks, stock audit, public catalog visibility rules, SKU foundation, seeded Baterai AAA variant behavior, receipt summary data, and cashier SKU checkout/conversion basics have landed. Remaining QA gaps: double-submit idempotency and concurrent checkout/no-negative-stock stress coverage.
+As of the 2026-05-31 sprint, auth/role guard, owner/admin category/product mutation, unique barcode checks, stock audit for manual adjustments, public catalog visibility rules, SKU foundation, seeded Baterai AAA variant behavior, receipt summary data, and cashier SKU checkout/conversion basics have landed. Remaining QA/product gaps: UI double-submit guard, backend idempotency, concurrent checkout/no-negative-stock stress coverage, cashier-friendly stock errors, receipt print/store context, cash tender/change, faster cashier focus/quantity flow, SKU edit UI, and clearer admin base-unit helper copy.

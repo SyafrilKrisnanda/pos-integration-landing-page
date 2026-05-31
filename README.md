@@ -19,6 +19,7 @@ Repository prototype untuk integrasi POS toko groceries dengan website company p
 - `USER_FLOW_V1.md` — alur utama owner/admin, cashier, dan customer.
 - `FEATURE_SCOPE_V1.md` — cakupan fitur V1 dan batasan.
 - `ARCHITECTURE_DRAFT.md` — rancangan arsitektur awal.
+- `docs/PRODUCT_GAP_REVIEW_2026-05-31.md` — review gap product/UX untuk groceries POS dan cut line local testing 18:00.
 
 ## Catatan Safety
 - Tidak ada deployment production dalam scope ini.

@@ -49,6 +49,10 @@
 
 ## Acceptance Notes
 - Owner dapat mengelola produk groceries dengan barcode dan unit pcs/pack.
-- Cashier dapat menyelesaikan transaksi dasar.
-- Website dapat menampilkan katalog dari data POS.
+- Product master memakai stok base unit; SKU/variant menjual dalam sell unit dengan `conversionQty` ke base unit.
+- Cashier dapat menyelesaikan transaksi dasar dan stok berkurang sesuai konsumsi base unit.
+- Untuk local testing, checkout harus punya guard UI agar tidak double-submit; backend idempotency boleh menjadi follow-up jika dicatat jelas.
+- Receipt local test minimal memuat transaction id/tanggal, payment method, item display name, unit jual, qty, subtotal, total, dan konsumsi base unit untuk debugging.
+- Admin perlu helper copy/contoh agar base unit, unit jual SKU, dan conversion quantity tidak membingungkan.
+- Website dapat menampilkan katalog dari data POS tanpa membocorkan raw stock quantity.
 - Customer dapat diarahkan ke WhatsApp untuk order.
