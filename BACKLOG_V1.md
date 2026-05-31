@@ -95,6 +95,8 @@ Acceptance criteria:
 - Whether POS and website should share one runtime or separate builds.
 - WhatsApp destination number and message template.
 - Required cashier/owner login depth for V1 prototype.
+- Whether products need multi-SKU / variant support (example: `Baterai AAA - Ecer` vs `Baterai AAA - Pack 4`) with unit conversion from a base stock unit.
+- Whether admin needs per-product image field (`image_url` / `image_path`) in the next iteration.
 
 ## Current Recommendation
 Use a simple local-first architecture for V1 prototype unless the user asks otherwise. Prefer SQLite or a small local API over static-only JSON if cashier checkout and stock decrement are in scope, because stock must update transactionally.

@@ -6,7 +6,10 @@ Smoke coverage for the V1 POS + website catalog integration. These checks are in
 
 ## Automated smoke tests
 
-Script: `app/scripts/smoke-pos-edge-cases.mjs`
+Scripts:
+
+- `app/scripts/smoke-pos-edge-cases.mjs` — current V1 POS/catalog edge cases.
+- `app/scripts/smoke-sku-foundation.mjs` — Slice A product-master + SKU foundation coverage.
 
 Run from the app directory:
 
@@ -14,6 +17,7 @@ Run from the app directory:
 cd /home/synner/.openclaw/workspace/pos-integration-landing-page/app
 npm run check
 npm run smoke:pos
+npm run smoke:sku-foundation
 ```
 
 Optional: run against an already-running local server:
@@ -21,9 +25,10 @@ Optional: run against an already-running local server:
 ```bash
 cd /home/synner/.openclaw/workspace/pos-integration-landing-page/app
 BASE_URL=http://127.0.0.1:8790 npm run smoke:pos
+BASE_URL=http://127.0.0.1:8790 npm run smoke:sku-foundation
 ```
 
-By default the smoke script starts `src/server.js` on `127.0.0.1` with a temporary SQLite database, runs the checks, then stops the child server.
+By default each smoke script starts `src/server.js` on `127.0.0.1` with a temporary SQLite database, runs the checks, then stops the child server.
 
 ## Expected API contract under test
 
@@ -37,6 +42,17 @@ The smoke script covers this local-only sprint contract:
 - `POST /api/admin/products/:id/stock`
 - `GET /api/admin/stock-audits`
 - `GET /api/catalog/products`
+
+Slice A SKU foundation contract under test:
+
+- Migrated/admin products expose `baseUnit`/`base_unit`.
+- Each migrated product has at least one default SKU at `GET /api/admin/products/:id/skus`.
+- `POST /api/admin/products` creates a product master with base-unit stock.
+- `POST /api/admin/products/:id/skus` creates sellable SKUs.
+- `PATCH` or `PUT /api/admin/skus/:id` updates SKU fields.
+- `DELETE /api/admin/skus/:id` soft-disables a SKU.
+- `PATCH` or `POST /api/admin/products/:id/stock` updates product-master stock in base units.
+- Public catalog never leaks raw stock quantity.
 
 If endpoint names change, update the smoke script before treating failures as product bugs.
 
@@ -79,6 +95,38 @@ If endpoint names change, update the smoke script before treating failures as pr
 - [x] Public catalog never exposes raw stock quantity (`quantity`, `stockQty`, etc.).
 - [x] Admin/POS APIs expose exact quantity only to authorized owner/admin role.
 
+## Additional retail edge cases to add in the next QA pass
+
+### Product master + SKU foundation — Slice A
+
+- [ ] Migration creates product masters from seeded/current products.
+- [ ] Migration creates one default SKU per product master.
+- [ ] Product master stores `baseUnit`/`base_unit`.
+- [ ] Product-master stock is stored/updated in base units.
+- [ ] One product master can have multiple active SKUs.
+- [ ] Admin can create/list/update/soft-disable SKUs.
+- [ ] Duplicate barcode across SKUs is rejected.
+- [ ] Inactive SKU is hidden from public catalog.
+
+### Mixed-unit / SKU conversion — Slice B+
+
+- [ ] One SKU sale can decrement more than 1 base unit.
+- [ ] If stock is enough for `ecer` but not enough for `pack`, only the `pack` SKU is blocked.
+- [ ] Inactive SKU is hidden from cashier search.
+
+### Checkout integrity
+
+- [ ] Multi-item checkout is atomic: all line items succeed or all fail.
+- [ ] Double-submit checkout does not create duplicate transactions.
+- [ ] Concurrent checkout on the same base stock does not create negative inventory.
+- [ ] Transaction item stores price snapshot and conversion snapshot.
+
+### Catalog policy clarity
+
+- [ ] Active product with stock `0` is shown as `out_of_stock` if that policy remains approved.
+- [ ] Inactive product is hidden entirely.
+- [ ] Public catalog never leaks base-unit stock quantity even with multiple SKUs.
+
 ## Current known result
 
-As of the 2026-05-31 sprint, auth/role guard, owner/admin category/product mutation, unique barcode checks, stock audit, and public catalog visibility rules have landed. Cashier checkout remains future scope.
+As of the 2026-05-31 sprint, auth/role guard, owner/admin category/product mutation, unique barcode checks, stock audit, and public catalog visibility rules have landed. Cashier checkout remains future scope, and mixed-unit retail support (ecer vs pack / SKU conversion) still requires PRD and schema changes before implementation.
