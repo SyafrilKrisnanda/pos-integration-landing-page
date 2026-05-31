@@ -6,7 +6,7 @@
     <title>Cashier Lokal | Groceries POS</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body class="cashier-page">
     <header class="site-header" aria-label="Header cashier">
       <a class="brand" href="./" aria-label="Kembali ke katalog">
         <span class="brand-mark" aria-hidden="true">GRC</span>
@@ -49,7 +49,7 @@
             <h2>Kategori</h2>
             <div class="chips" id="categoryChips" aria-label="Kategori"></div>
 
-            <h2 style="margin-top:1.1rem;">Cari SKU</h2>
+            <h2 class="search-title">Cari SKU</h2>
             <form class="admin-form inline" id="searchForm">
               <label>Barcode / nama SKU <input name="term" placeholder="Scan barcode atau ketik nama produk…" autofocus required /></label>
               <button class="button primary" type="submit">Cari</button>
